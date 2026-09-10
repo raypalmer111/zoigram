@@ -1,0 +1,15 @@
+{
+  "settings": {
+    "auto_require": false
+  },
+  "bindings": {
+    "B1": [
+      {
+        "type": "Zoi",
+        "key": "*",
+        "script": "B1.PhoneIntegration"
+      }
+    ],
+    "B2": []
+  }
+}

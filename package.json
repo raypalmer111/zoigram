@@ -1,0 +1,17 @@
+{
+  "name": "zoigram-server",
+  "version": "0.14.1",
+  "private": true,
+  "description": "Shared Zoigram community API and Steam login",
+  "engines": {
+    "node": ">=24.13"
+  },
+  "scripts": {
+    "start": "node src/main.cjs",
+    "test": "node --test test/*.test.cjs",
+    "admin": "node tools/admin.cjs"
+  },
+  "dependencies": {
+    "sharp": "^0.35.4"
+  }
+}
