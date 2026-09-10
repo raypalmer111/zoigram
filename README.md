@@ -1,6 +1,6 @@
 # Zoigram
 
-Photo sharing between real players inside the inZOI phone. This repository contains the client 0.13.1 and community server 0.14.1 source for review and reproducible builds.
+Photo sharing between real players inside the inZOI phone. This repository contains the client 0.43.1 and community server 0.14.1 source for review and reproducible builds.
 
 [Nexus Mods page](https://www.nexusmods.com/inzoi/mods/1474) · [Network and review notes](publication/nexus-0.13.1/REVIEW.md) · [Manual installation](publication/nexus-0.13.1/INSTALL.txt)
 
