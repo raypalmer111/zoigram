@@ -8,7 +8,7 @@
  async function read(key){try{var r=await cli('uimod.cfg_load',{mod_id:MOD,section:'online',key:key});return r&&r.value?unhex(r.value):null;}catch(e){return null;}}
  function write(key,value){return cli('uimod.cfg_save',{mod_id:MOD,section:'online',key:key,value:hex(value)});}
  function server(value){if(typeof value!=='string'||value.length>240)throw Error('Укажите адрес сервера.');value=value.replace(/\/+$/,'');if(!/^https:\/\/[a-z0-9.-]+(?::\d{1,5})?$/i.test(value)&&!/^http:\/\/(127\.0\.0\.1|localhost)(?::\d{1,5})?$/i.test(value))throw Error('Нужен HTTPS-адрес сервера без пути.');return value;}
- function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|me(?:\/(avatar|avatar-upload))?|session|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\/[a-f0-9-]{36}\/(messages|read))?(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/\d+(?:\/(like|comments))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
+ function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|me(?:\/(avatar|avatar-upload|account-access))?|session|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\/[a-f0-9-]{36}\/(messages|read))?(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/\d+(?:\/(like|comments))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
  function request(method,url,body,token,raw,language){return new Promise(function(resolve,reject){
   var x=new XMLHttpRequest();var timer=setTimeout(function(){reject(Error('Сервер или файл не ответил вовремя. Попробуйте снова.'));try{x.abort();}catch(e){}},25000);x.open(method,url,true);x.timeout=25000;if(raw)x.responseType='arraybuffer';else if(body!==undefined)x.setRequestHeader('Content-Type','application/json');if(token)x.setRequestHeader('Authorization','Bearer '+token);if(!raw)x.setRequestHeader('Accept-Language',language||'ru');
   x.onload=function(){clearTimeout(timer);try{if(raw){if(x.status!==200&&x.status!==0)throw Error('Не удалось прочитать снимок.');return resolve({status:200,body:x.response});}var data=JSON.parse(x.responseText);resolve({status:x.status,body:data});}catch(e){reject(Error('Сервер вернул непонятный ответ.'));}};
@@ -20,7 +20,7 @@
   var base=server(job.server);if(!allowed(job.path)||['GET','POST','PUT','PATCH','DELETE'].indexOf(job.method)<0)throw Error('Неизвестное сетевое действие.');
   var authenticated=job.path!=='/api/info'&&job.path.indexOf('/api/auth/')!==0;
   var token=access&&access.server===base&&access.expiresAt>Date.now()?access.token:null;
-  if(authenticated&&!token)return {status:401,body:{error:'Войдите через Steam.'}};
+  if(authenticated&&!token)return {status:401,body:{error:'Войдите в Zoigram.'}};
   var body=job.body;
   if(job.upload){if(job.path!=='/api/posts'||job.method!=='POST'||!/^outgoing_[1-4]\.png$/.test(job.upload))throw Error('Неверный снимок.');await progress('Чтение снимка…');var local=await request('GET','uploads/'+job.upload,undefined,null,true);if(!local.body||!local.body.byteLength||local.body.byteLength>8*1024*1024)throw Error('Снимок пустой или больше 8 МБ. Уменьшите разрешение в фоторежиме.');await progress('Подготовка снимка…',local.body.byteLength);body={requestId:body.requestId,caption:body.caption,imageBase64:base64(local.body)};}
   await progress(job.upload?'Отправка фотографии…':'Загрузка…');var result=await request(job.method,base+job.path,body,token,false,job.language);
@@ -38,5 +38,5 @@
   if(result.body&&result.body.error){var key=result.body.messageKey||result.body.error;if(messages[key]){result.body.messageKey=key;result.body.error=messages[key];}}
   await write('response',{id:job.id,status:result.status,body:result.body,finishedAt:Math.floor(Date.now()/1000)});
  }catch(e){if(job&&job.id)lastId='';}finally{busy=false;}}
- engine.on('Ready',async function(){access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'0.13.1'});setInterval(tick,250);tick();});
+ engine.on('Ready',async function(){access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'0.14.0'});setInterval(tick,250);tick();});
 })();

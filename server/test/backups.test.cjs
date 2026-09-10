@@ -7,6 +7,7 @@ function fixture(t){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'zoigram-backup-')),data=path.join(root,'data'),copies=path.join(root,'backups');fs.mkdirSync(data);
  const db=openStore(path.join(data,'zoigram.sqlite'));fs.writeFileSync(path.join(data,'media.key'),crypto.randomBytes(32));
  const owner=identity(db,'test','backup-owner'),follower=identity(db,'test','backup-follower'),access=session(db,owner.id);
+ db.prepare('INSERT INTO account_credentials VALUES(?,?,?,?,?,?)').run(owner.id,'backup_private_login','synthetic-hash','synthetic-recovery-hash',Date.now(),Date.now());
  const image=Buffer.from('image-data'),thumbnail=Buffer.from('thumbnail-data');
  db.prepare('INSERT INTO avatars VALUES(?,?,?,?,?)').run(owner.id,Buffer.from('avatar-data'),11,'backup-avatar-revision',Date.now());
  const post=Number(db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(owner.id,'backup-request','hash','Кадр 🌆',Date.now(),64,64,image,thumbnail,image.length+thumbnail.length).lastInsertRowid);
@@ -21,12 +22,13 @@ test('a live WAL database restores IDs, media, sessions and relationships into a
  const target=path.join(f.root,'restored');await restoreBackup(made.directory,target);assert.deepEqual(fs.readFileSync(path.join(target,'media.key')),fs.readFileSync(path.join(f.data,'media.key')));
  const restored=new DatabaseSync(path.join(target,'zoigram.sqlite'));
  try{assert.deepEqual(restored.prepare('SELECT * FROM profiles WHERE id=?').get(f.owner.id),f.owner);assert.equal(restored.prepare('SELECT profile_id FROM sessions WHERE token_hash=?').get(hash(f.access.token)).profile_id,f.owner.id);const post=restored.prepare('SELECT * FROM posts WHERE id=?').get(f.post);const avatar=restored.prepare('SELECT * FROM avatars WHERE profile_id=?').get(f.owner.id);assert.equal(avatar.revision,'backup-avatar-revision');assert.equal(Buffer.from(avatar.image).toString(),'avatar-data');assert.equal(post.caption,'Кадр 🌆');assert.deepEqual(Buffer.from(post.image),f.image);assert.deepEqual(Buffer.from(post.thumbnail),f.thumbnail);assert.equal(restored.prepare('SELECT COUNT(*) n FROM comments').get().n,1);assert.equal(restored.prepare('SELECT COUNT(*) n FROM follows').get().n,1)}finally{restored.close()}
+ const credentials=new DatabaseSync(path.join(target,'zoigram.sqlite'));try{assert.deepEqual(credentials.prepare('SELECT * FROM account_credentials WHERE profile_id=?').get(f.owner.id),f.db.prepare('SELECT * FROM account_credentials WHERE profile_id=?').get(f.owner.id))}finally{credentials.close()}
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM posts').get().n,1);
 });
 test('a pre-0.14 snapshot verifies and migrates without inventing tables in its signed manifest',async t=>{
- const f=fixture(t);f.db.exec('DROP TABLE avatars; DROP TABLE avatar_uploads; DROP TABLE notifications; DROP TABLE direct_messages; PRAGMA user_version=2');
+ const f=fixture(t);f.db.exec('DROP TABLE account_credentials; DROP TABLE account_links; DROP TABLE account_flows; DROP TABLE avatars; DROP TABLE avatar_uploads; DROP TABLE notifications; DROP TABLE direct_messages; PRAGMA user_version=2');
  const made=await createBackup(f.data,f.copies),verified=await verifyBackup(made.directory);assert.equal(verified.database.schemaVersion,2);assert(!Object.hasOwn(verified.database.counts,'notifications'));assert(!Object.hasOwn(verified.database.counts,'direct_messages'));
- const target=path.join(f.root,'legacy-restored');await restoreBackup(made.directory,target);const migrated=openStore(path.join(target,'zoigram.sqlite'));try{assert.equal(migrated.prepare('PRAGMA user_version').get().user_version,4);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM notifications').get().n,0);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM direct_messages').get().n,0);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM posts').get().n,1)}finally{migrated.close()}
+ const target=path.join(f.root,'legacy-restored');await restoreBackup(made.directory,target);const migrated=openStore(path.join(target,'zoigram.sqlite'));try{assert.equal(migrated.prepare('PRAGMA user_version').get().user_version,5);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM notifications').get().n,0);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM direct_messages').get().n,0);assert.equal(migrated.prepare('SELECT COUNT(*) n FROM posts').get().n,1)}finally{migrated.close()}
 });
 test('corrupted files cannot restore and a nonempty destination is never overwritten',async t=>{
  const f=fixture(t),made=await createBackup(f.data,f.copies);await assert.rejects(()=>restoreBackup(made.directory,f.data),/empty directory/);

@@ -1,8 +1,8 @@
 {
   "name": "zoigram-server",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "private": true,
-  "description": "Shared Zoigram community API and Steam login",
+  "description": "Shared Zoigram community API with private username and password accounts",
   "engines": {
     "node": ">=24.13"
   },

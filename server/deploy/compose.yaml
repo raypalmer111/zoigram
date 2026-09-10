@@ -12,6 +12,7 @@ services:
       STORAGE_LIMIT_MB: ${STORAGE_LIMIT_MB:-2048}
       TRUST_PROXY: loopback
       OWNER_STEAM_ID: ${OWNER_STEAM_ID:-}
+      OWNER_PROFILE_ID: ${OWNER_PROFILE_ID:-}
     volumes:
       - community:/data
       - backups:/backups

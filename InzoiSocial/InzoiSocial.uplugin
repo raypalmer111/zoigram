@@ -1,9 +1,9 @@
 {
   "FileVersion": 3,
-  "Version": 19,
-  "VersionName": "0.13.1",
+  "Version": 20,
+  "VersionName": "0.14.0",
   "FriendlyName": "Zoigram",
-  "Description": "Zoigram: Steam profiles, Photo Mode posts, reactions, notifications, reports and private messages between real players.",
+  "Description": "Zoigram: player accounts, Photo Mode posts, avatars, notifications, reports and private messages.",
   "Category": "UGC",
   "CreatedBy": "Zoigram",
   "CreatedByURL": "",

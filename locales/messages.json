@@ -1,209 +1,1484 @@
 [
- ["Загрузить фото","Upload photo","Importer une photo","사진 업로드"],
- ["Удалить аватар","Remove profile photo","Supprimer l’avatar","프로필 사진 삭제"],
- ["Выберите фото в браузере. После загрузки аватар обновится здесь.","Choose a photo in your browser. Your avatar will update here after uploading.","Choisissez une photo dans votre navigateur. Votre avatar sera mis à jour ici après l’envoi.","브라우저에서 사진을 선택하세요. 업로드가 끝나면 여기에서 프로필 사진이 업데이트됩니다."],
- ["Аватар обновлён.","Profile photo updated.","Avatar mis à jour.","프로필 사진이 업데이트되었습니다."],
- ["Аватар удалён.","Profile photo removed.","Avatar supprimé.","프로필 사진이 삭제되었습니다."],
- ["Ссылка для аватара истекла. Откройте новую из профиля.","The avatar link has expired. Open a new one from your profile.","Le lien de l’avatar a expiré. Ouvrez-en un nouveau depuis votre profil.","프로필 사진 링크가 만료되었습니다. 프로필에서 새 링크를 열어 주세요."],
- ["Жалоба попадёт только владельцу Zoigram. Игрок не увидит, кто её отправил.","Only the Zoigram owner receives your report. The player will not see who sent it.","Seul le propriétaire de Zoigram reçoit votre signalement. Le joueur ne verra pas qui l’a envoyé.","신고는 Zoigram 운영자만 확인할 수 있습니다. 신고한 사람은 상대 플레이어에게 공개되지 않습니다."],
- ["Отмена","Cancel","Annuler","취소"],
- ["Нет связи с сервером. Попробуйте ещё раз.","Cannot connect to the server. Please try again.","Connexion au serveur impossible. Réessayez.","서버에 연결할 수 없습니다. 다시 시도해 주세요."],
- ["Укажите HTTPS-адрес сервера.","Enter the server's HTTPS address.","Saisissez l’adresse HTTPS du serveur.","서버의 HTTPS 주소를 입력해 주세요."],
- ["По этому адресу нет совместимого сервера Zoigram.","No compatible Zoigram server at this address.","Aucun serveur Zoigram compatible à cette adresse.","이 주소에는 호환되는 Zoigram 서버가 없습니다."],
- ["Дождитесь загрузки персонажа.","Wait for your Zoi to load.","Attendez le chargement de votre Zoi.","조이가 로드될 때까지 기다려 주세요."],
- ["Не удалось открыть фоторежим.","Could not open Photo Mode.","Impossible d’ouvrir le mode Photo.","사진 모드를 열 수 없습니다."],
- ["Сначала сохраните снимок для текущего персонажа.","Save a photo of your current Zoi first.","Enregistrez d’abord une photo de votre Zoi actuel.","먼저 현재 조이의 사진을 저장해 주세요."],
- ["Подпись должна быть не длиннее 2200 символов.","Captions must be 2,200 characters or fewer.","La légende ne doit pas dépasser 2 200 caractères.","설명은 2,200자 이내로 입력해 주세요."],
- ["Не удалось подготовить снимок для отправки.","Could not prepare the photo for upload.","Impossible de préparer la photo pour l’envoi.","사진 업로드를 준비할 수 없습니다."],
- ["Публикация добавлена.","Post shared.","Publication partagée.","게시물이 게시되었습니다."],
- ["Скопируйте ссылку ниже и откройте её в браузере.","Copy the link below and open it in your browser.","Copiez le lien ci-dessous et ouvrez-le dans votre navigateur.","아래 링크를 복사해 브라우저에서 열어 주세요."],
- ["Сервер вернул неверный адрес входа.","The server returned an invalid sign-in address.","Le serveur a renvoyé une adresse de connexion invalide.","서버가 잘못된 로그인 주소를 반환했습니다."],
- ["Можно удалить только свою публикацию.","You can only delete your own posts.","Vous pouvez uniquement supprimer vos propres publications.","본인의 게시물만 삭제할 수 있습니다."],
- ["Публикация удалена.","Post deleted.","Publication supprimée.","게시물이 삭제되었습니다."],
- ["Жалоба отправлена.","Report submitted.","Signalement envoyé.","신고가 접수되었습니다."],
- ["Код входа истёк. Начните заново.","Your sign-in code has expired. Start again.","Votre code de connexion a expiré. Recommencez.","로그인 코드가 만료되었습니다. 다시 시작해 주세요."],
- ["Не удалось связаться с сетевым модулем.","Cannot reach the network module.","Impossible de joindre le module réseau.","네트워크 모듈에 연결할 수 없습니다."],
- ["Не удалось отправить запрос из игры.","Could not send the request from the game.","Impossible d’envoyer la requête depuis le jeu.","게임에서 요청을 전송할 수 없습니다."],
- ["Сетевой модуль не ответил. Повторите действие; после обновления мода может потребоваться перезапуск игры.","The network module did not respond. Try again; you may need to restart the game after updating the mod.","Le module réseau ne répond pas. Réessayez ; un redémarrage du jeu peut être nécessaire après une mise à jour du mod.","네트워크 모듈이 응답하지 않습니다. 다시 시도해 주세요. 모드 업데이트 후에는 게임을 다시 시작해야 할 수 있습니다."],
- ["Загрузка…","Loading…","Chargement…","불러오는 중…"],
- ["Загрузка фото…","Loading photo…","Chargement de la photo…","사진 불러오는 중…"],
- ["Фото недоступно","Photo unavailable","Photo indisponible","사진을 볼 수 없습니다"],
- ["Фото не загрузилось. Обновите ленту.","Could not load the photo. Refresh your feed.","La photo n’a pas été chargée. Actualisez le fil.","사진을 불러오지 못했습니다. 피드를 새로고침해 주세요."],
- ["Фото временно недоступно","Photo temporarily unavailable","Photo temporairement indisponible","일시적으로 사진을 볼 수 없습니다"],
- ["История в кадрах","A story in pictures","Une histoire en images","사진으로 담은 이야기"],
- ["Здесь появятся опубликованные фотографии.","Shared photos will appear here.","Les photos publiées apparaîtront ici.","게시한 사진이 여기에 표시됩니다."],
- ["Ваша лента подписок","Your following feed","Votre fil d’abonnements","팔로잉 피드"],
- ["Подпишитесь на авторов, чьи кадры вам нравятся.","Follow people whose photos you love.","Abonnez-vous aux personnes dont les photos vous plaisent.","마음에 드는 사진을 올리는 사람들을 팔로우해 보세요."],
- ["Первый кадр — за вами","Share the first moment","À vous le premier cliché","첫 순간을 공유해 보세요"],
- ["Нажмите ＋, чтобы поделиться моментом из inZOI.","Tap + to share a moment from inZOI.","Appuyez sur + pour partager un moment d’inZOI.","+를 눌러 inZOI 속 순간을 공유해 보세요."],
- ["Удалить публикацию","Delete post","Supprimer la publication","게시물 삭제"],
- ["Пожаловаться","Report","Signaler","신고"],
- ["Комментарии · {count}","Comments · {count}","Commentaires · {count}","댓글 · {count}"],
- ["Показать ещё","Show more","Voir plus","더 보기"],
- ["Для вас","For you","Pour vous","추천"],
- ["Подписки","Following","Abonnements","팔로잉"],
- ["постов","posts","publications","게시물"],
- ["подписчиков","followers","abonnés","팔로워"],
- ["подписок","following","abonnements","팔로잉"],
- ["Редактировать профиль","Edit profile","Modifier le profil","프로필 편집"],
- ["Вы подписаны","Following","Abonné·e","팔로잉"],
- ["Подписаться","Follow","S’abonner","팔로우"],
- ["Подтвердить блокировку","Confirm block","Confirmer le blocage","차단 확인"],
- ["Заблокировать","Block","Bloquer","차단"],
- ["Загрузка профиля…","Loading profile…","Chargement du profil…","프로필 불러오는 중…"],
- ["Поймайте момент","Capture a moment","Capturez l’instant","순간을 담아 보세요"],
- ["Сделайте кадр в фоторежиме, сохраните его и вернитесь сюда.","Take a photo in Photo Mode, save it, then return here.","Prenez une photo en mode Photo, enregistrez-la, puis revenez ici.","사진 모드에서 사진을 찍고 저장한 뒤 여기로 돌아와 주세요."],
- ["Переснять","Retake","Reprendre","다시 찍기"],
- ["Открыть фоторежим","Open Photo Mode","Ouvrir le mode Photo","사진 모드 열기"],
- ["Подпись","Caption","Légende","설명"],
- ["Пост увидят участники вашего сообщества.","Members of your community can see this post.","Les membres de votre communauté pourront voir cette publication.","커뮤니티 회원들이 이 게시물을 볼 수 있습니다."],
- ["Опубликовать","Share","Publier","게시"],
- ["Удалить эту публикацию?","Delete this post?","Supprimer cette publication ?","이 게시물을 삭제할까요?"],
- ["Фото, лайки и комментарии исчезнут из Zoigram. Отменить удаление нельзя.","The photo, likes and comments will be removed from Zoigram. This cannot be undone.","La photo, les mentions J’aime et les commentaires seront supprimés de Zoigram. Cette action est irréversible.","사진, 좋아요, 댓글이 Zoigram에서 삭제됩니다. 삭제한 게시물은 복구할 수 없습니다."],
- ["Оставить публикацию","Keep post","Conserver la publication","게시물 유지"],
- ["Пока тихо. Начните разговор.","No comments yet. Start the conversation.","Aucun commentaire pour le moment. Lancez la conversation.","아직 댓글이 없습니다. 대화를 시작해 보세요."],
- ["Удалить","Delete","Supprimer","삭제"],
- ["Ещё комментарии","More comments","Plus de commentaires","댓글 더 보기"],
- ["Ваш комментарий","Your comment","Votre commentaire","댓글 작성"],
- ["Отправить","Send","Envoyer","보내기"],
- ["ID аккаунта","Account ID","Identifiant du compte","계정 ID"],
- ["Закреплён за аккаунтом. Изменение через модератора.","Assigned to your account. Only a moderator can change it.","Attribué à votre compte. Seule la modération peut le modifier.","계정에 부여된 ID입니다. 관리자만 변경할 수 있습니다."],
- ["Имя","Name","Nom","이름"],
- ["О себе","Bio","Bio","소개"],
- ["Сохранить","Save","Enregistrer","저장"],
- ["Мои подписки","People I follow","Mes abonnements","내 팔로잉"],
- ["Заблокированные аккаунты","Blocked accounts","Comptes bloqués","차단한 계정"],
- ["Ваше сообщество","Your community","Votre communauté","내 커뮤니티"],
- ["Адрес сервера Zoigram","Zoigram server address","Adresse du serveur Zoigram","Zoigram 서버 주소"],
- ["Подключиться","Connect","Se connecter","연결"],
- ["Локальное сообщество на этом компьютере.","A local community on this computer.","Une communauté locale sur cet ordinateur.","이 컴퓨터의 로컬 커뮤니티입니다."],
- ["Выйти из аккаунта","Sign out","Se déconnecter","로그아웃"],
- ["Жизнь. В вашем кадре.","Life. Through your lens.","La vie. À travers votre regard.","당신의 시선으로 담은 일상."],
- ["Фотографии, люди и моменты из inZOI.","Photos, people and moments from inZOI.","Des photos, des gens et des instants d’inZOI.","inZOI 속 사진, 사람, 그리고 순간들."],
- ["Код: {code}","Code: {code}","Code : {code}","코드: {code}"],
- ["Ссылка для браузера · Ctrl+A, Ctrl+C","Browser link · Ctrl+A, Ctrl+C","Lien à ouvrir · Ctrl+A, Ctrl+C","브라우저 링크 · Ctrl+A, Ctrl+C"],
- ["Подтвердите вход в Steam и вернитесь в игру.","Sign in through Steam, then return to the game.","Confirmez la connexion sur Steam, puis revenez dans le jeu.","Steam에서 로그인을 확인한 뒤 게임으로 돌아와 주세요."],
- ["Открыть страницу входа","Open sign-in page","Ouvrir la page de connexion","로그인 페이지 열기"],
- ["Начать заново","Start again","Recommencer","다시 시작"],
- ["Войти через Steam","Sign in with Steam","Se connecter avec Steam","Steam으로 로그인"],
- ["Один Steam-аккаунт — один профиль.","One Steam account, one profile.","Un compte Steam, un profil.","Steam 계정 하나당 프로필 하나."],
- ["Что произошло?","What happened?","Que s’est-il passé ?","무슨 일이 있었나요?"],
- ["Спам или нежелательный контент","Spam or unwanted content","Spam ou contenu indésirable","스팸 또는 원치 않는 콘텐츠"],
- ["Отправить жалобу","Submit report","Envoyer le signalement","신고 보내기"],
- ["Разблокировать","Unblock","Débloquer","차단 해제"],
- ["Здесь пока никого.","No one here yet.","Il n’y a encore personne ici.","아직 아무도 없습니다."],
- ["Лента","Feed","Fil","피드"],
- ["Профиль","Profile","Profil","프로필"],
- ["Новый пост","New post","Créer","새 게시물"],
- ["Комментарии","Comments","Commentaires","댓글"],
- ["Редактировать","Edit profile","Modifier","프로필 편집"],
- ["Настройки","Settings","Paramètres","설정"],
- ["Заблокированные","Blocked","Blocages","차단 목록"],
- ["Жалоба","Report","Signalement","신고"],
- ["Публикация","Post","Publication","게시물"],
- ["Обновить","Refresh","Actualiser","새로고침"],
- ["Сервер","Settings","Paramètres","설정"],
- ["Язык","Language","Langue","언어"],
- ["Как в игре","Game language","Langue du jeu","게임 언어"],
- ["Язык интерфейса Zoigram. Публикации и имена игроков не переводятся.","Zoigram interface language. Posts and player names are not translated.","Langue de l’interface Zoigram. Les publications et les noms des joueurs ne sont pas traduits.","Zoigram 인터페이스 언어입니다. 게시물과 플레이어 이름은 번역되지 않습니다."],
- ["Укажите адрес сервера.","Enter a server address.","Saisissez une adresse de serveur.","서버 주소를 입력해 주세요."],
- ["Нужен HTTPS-адрес сервера без пути.","Enter an HTTPS server address without a path.","Saisissez une adresse HTTPS de serveur, sans chemin.","경로를 제외한 서버의 HTTPS 주소를 입력해 주세요."],
- ["Сервер или файл не ответил вовремя. Попробуйте снова.","The server or file request timed out. Try again.","Le serveur ou le fichier n’a pas répondu à temps. Réessayez.","서버 또는 파일 요청 시간이 초과되었습니다. 다시 시도해 주세요."],
- ["Не удалось прочитать снимок.","Could not read the photo.","Impossible de lire la photo.","사진을 읽을 수 없습니다."],
- ["Сервер вернул непонятный ответ.","The server returned an unreadable response.","Le serveur a renvoyé une réponse illisible.","서버 응답을 읽을 수 없습니다."],
- ["Нет связи с сервером. Проверьте интернет и повторите.","Cannot connect to the server. Check your internet connection and try again.","Connexion au serveur impossible. Vérifiez votre connexion Internet et réessayez.","서버에 연결할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요."],
- ["Сервер не ответил вовремя. Попробуйте снова.","The server did not respond in time. Try again.","Le serveur n’a pas répondu à temps. Réessayez.","서버 응답 시간이 초과되었습니다. 다시 시도해 주세요."],
- ["Неизвестное сетевое действие.","Unknown network action.","Action réseau inconnue.","알 수 없는 네트워크 작업입니다."],
- ["Войдите через Steam.","Sign in with Steam.","Connectez-vous avec Steam.","Steam으로 로그인해 주세요."],
- ["Неверный снимок.","Invalid photo.","Photo invalide.","올바르지 않은 사진입니다."],
- ["Чтение снимка…","Reading photo…","Lecture de la photo…","사진 읽는 중…"],
- ["Снимок пустой или больше 8 МБ. Уменьшите разрешение в фоторежиме.","The photo is empty or exceeds 8 MB. Lower the resolution in Photo Mode.","La photo est vide ou dépasse 8 Mo. Réduisez la résolution en mode Photo.","사진이 비어 있거나 8MB를 초과합니다. 사진 모드에서 해상도를 낮춰 주세요."],
- ["Подготовка снимка…","Preparing photo…","Préparation de la photo…","사진 준비 중…"],
- ["Отправка фотографии…","Uploading photo…","Envoi de la photo…","사진 업로드 중…"],
- ["Фоторежим уже открывается","Photo Mode is already opening","Le mode Photo est déjà en cours d’ouverture","사진 모드를 여는 중입니다"],
- ["Камера сейчас недоступна","Camera currently unavailable","Appareil photo indisponible pour le moment","지금은 카메라를 사용할 수 없습니다"],
- ["Снимок ещё не готов","Photo not ready yet","La photo n’est pas encore prête","아직 사진이 준비되지 않았습니다"],
- ["Не удалось сохранить фото для публикации","Could not save the photo for your post","Impossible d’enregistrer la photo pour la publication","게시할 사진을 저장할 수 없습니다"],
- ["Не удалось получить снимок. Повторите съёмку.","Could not capture the photo. Take another one.","Impossible de récupérer la photo. Reprenez-en une.","사진을 가져올 수 없습니다. 다시 촬영해 주세요."],
- ["Камера не открылась. Повторите попытку.","The camera did not open. Try again.","L’appareil photo ne s’est pas ouvert. Réessayez.","카메라가 열리지 않았습니다. 다시 시도해 주세요."],
- ["Проверьте текст и его длину.","Check the text and its length.","Vérifiez le texte et sa longueur.","텍스트와 글자 수를 확인해 주세요."],
- ["Заполните поле.","Fill in this field.","Remplissez ce champ.","이 항목을 입력해 주세요."],
- ["Не указан идентификатор отправки.","Missing submission ID.","Identifiant d’envoi manquant.","전송 ID가 없습니다."],
- ["Слишком много запросов. Подождите немного.","Too many requests. Please wait a moment.","Trop de requêtes. Patientez un instant.","요청이 너무 많습니다. 잠시 기다려 주세요."],
- ["Сервис занят. Попробуйте позже.","The service is busy. Try again later.","Le service est occupé. Réessayez plus tard.","서비스가 혼잡합니다. 나중에 다시 시도해 주세요."],
- ["Профиль недоступен.","Profile unavailable.","Profil indisponible.","프로필을 볼 수 없습니다."],
- ["Войдите через Steam заново.","Sign in with Steam again.","Reconnectez-vous avec Steam.","Steam으로 다시 로그인해 주세요."],
- ["Публикация недоступна.","Post unavailable.","Publication indisponible.","게시물을 볼 수 없습니다."],
- ["Ожидается JSON.","Expected a JSON request.","Une requête JSON est attendue.","JSON 형식의 요청이 필요합니다."],
- ["Слишком большой файл.","The file is too large.","Le fichier est trop volumineux.","파일이 너무 큽니다."],
- ["Не удалось прочитать запрос.","Could not read the request.","Impossible de lire la requête.","요청을 읽을 수 없습니다."],
- ["Код входа неверен.","Invalid sign-in code.","Code de connexion invalide.","올바르지 않은 로그인 코드입니다."],
- ["Вход уже завершён. Если связь прервалась, начните заново.","Sign-in is already complete. If the connection was interrupted, start again.","La connexion est déjà terminée. Si elle a été interrompue, recommencez.","로그인이 이미 완료되었습니다. 연결이 끊겼다면 다시 시작해 주세요."],
- ["Код входа истёк. Начните заново в игре.","Your sign-in code has expired. Start again in the game.","Votre code de connexion a expiré. Recommencez dans le jeu.","로그인 코드가 만료되었습니다. 게임에서 다시 시작해 주세요."],
- ["Ссылка истекла. Обновите ленту.","This link has expired. Refresh your feed.","Ce lien a expiré. Actualisez le fil.","링크가 만료되었습니다. 피드를 새로고침해 주세요."],
- ["Неверная ссылка.","Invalid link.","Lien invalide.","올바르지 않은 링크입니다."],
- ["Войдите заново.","Sign in again.","Reconnectez-vous.","다시 로그인해 주세요."],
- ["Страница не найдена.","Page not found.","Page introuvable.","페이지를 찾을 수 없습니다."],
- ["ID аккаунта закреплён. Изменить его может только модератор.","Your account ID is fixed. Only a moderator can change it.","L’identifiant du compte est fixe. Seule la modération peut le modifier.","계정 ID는 고정되어 있습니다. 관리자만 변경할 수 있습니다."],
- ["Неверный фильтр ленты.","Invalid feed filter.","Filtre du fil invalide.","올바르지 않은 피드 필터입니다."],
- ["Сервис обрабатывает фотографии. Попробуйте через несколько секунд.","Photos are being processed. Try again in a few seconds.","Des photos sont en cours de traitement. Réessayez dans quelques secondes.","사진을 처리하는 중입니다. 몇 초 후 다시 시도해 주세요."],
- ["Не удалось прочитать фотографию.","Could not read the photo.","Impossible de lire la photo.","사진을 읽을 수 없습니다."],
- ["Фото должно быть не больше 8 МБ.","Photos must be 8 MB or smaller.","La photo ne doit pas dépasser 8 Mo.","사진은 8MB 이하여야 합니다."],
- ["Этот запрос уже использован для другого поста.","This request was already used for another post.","Cette requête a déjà été utilisée pour une autre publication.","이 요청은 이미 다른 게시물에 사용되었습니다."],
- ["Можно опубликовать до 20 фотографий за сутки.","You can share up to 20 photos in 24 hours.","Vous pouvez publier jusqu’à 20 photos en 24 heures.","24시간 동안 최대 20장의 사진을 게시할 수 있습니다."],
- ["Выберите обычное фото PNG, JPEG или WebP размером от 64×64.","Choose a still PNG, JPEG or WebP photo of at least 64×64 pixels.","Choisissez une photo fixe PNG, JPEG ou WebP d’au moins 64 × 64 pixels.","64×64픽셀 이상의 PNG, JPEG 또는 WebP 정지 사진을 선택해 주세요."],
- ["Фотография повреждена или не поддерживается.","The photo is damaged or unsupported.","La photo est endommagée ou non prise en charge.","사진이 손상되었거나 지원되지 않는 형식입니다."],
- ["Идентификатор запроса уже использован.","This request ID has already been used.","Cet identifiant de requête a déjà été utilisé.","이미 사용된 요청 ID입니다."],
- ["Достигнут лимит публикаций на сегодня.","You have reached your daily post limit.","Vous avez atteint votre limite quotidienne de publications.","오늘의 게시 한도에 도달했습니다."],
- ["Хранилище заполнено. Владелец сервера уже может освободить место.","Storage is full. The server owner can free up space.","Le stockage est plein. Le propriétaire du serveur peut libérer de l’espace.","저장 공간이 가득 찼습니다. 서버 소유자가 공간을 확보할 수 있습니다."],
- ["Неверная страница комментариев.","Invalid comments page.","Page de commentaires invalide.","올바르지 않은 댓글 페이지입니다."],
- ["Идентификатор комментария уже использован.","This comment ID has already been used.","Cet identifiant de commentaire a déjà été utilisé.","이미 사용된 댓글 ID입니다."],
- ["Комментарий недоступен.","Comment unavailable.","Commentaire indisponible.","댓글을 볼 수 없습니다."],
- ["Можно удалить только свой комментарий.","You can only delete your own comments.","Vous pouvez uniquement supprimer vos propres commentaires.","본인의 댓글만 삭제할 수 있습니다."],
- ["Это ваш профиль.","This is your own profile.","Il s’agit de votre propre profil.","본인의 프로필입니다."],
- ["Неверный тип жалобы.","Invalid report type.","Type de signalement invalide.","올바르지 않은 신고 유형입니다."],
- ["Комментарий не найден.","Comment not found.","Commentaire introuvable.","댓글을 찾을 수 없습니다."],
- ["Действие не найдено.","Action not found.","Action introuvable.","작업을 찾을 수 없습니다."],
- ["Ошибка сервера. Попробуйте позже.","Server error. Try again later.","Erreur du serveur. Réessayez plus tard.","서버 오류입니다. 나중에 다시 시도해 주세요."],
- ["Код входа истёк. Начните вход заново в игре.","Your sign-in code has expired. Start signing in again from the game.","Votre code de connexion a expiré. Relancez la connexion depuis le jeu.","로그인 코드가 만료되었습니다. 게임에서 로그인을 다시 시작해 주세요."],
- ["Повторяющиеся параметры входа.","Duplicate sign-in parameters.","Paramètres de connexion en double.","로그인 매개변수가 중복되었습니다."],
- ["Сеанс входа истёк или открыт в другом браузере.","Your sign-in session has expired or was opened in another browser.","Votre session de connexion a expiré ou a été ouverte dans un autre navigateur.","로그인 세션이 만료되었거나 다른 브라우저에서 열렸습니다."],
- ["Steam вернул неверный ответ.","Steam returned an invalid response.","Steam a renvoyé une réponse invalide.","Steam이 잘못된 응답을 반환했습니다."],
- ["Не удалось проверить Steam-аккаунт.","Could not verify the Steam account.","Impossible de vérifier le compte Steam.","Steam 계정을 확인할 수 없습니다."],
- ["Неполная подпись Steam.","Steam's verification signature is incomplete.","La signature de vérification Steam est incomplète.","Steam 인증 서명이 불완전합니다."],
- ["Ответ Steam устарел или уже использован.","Steam's response has expired or was already used.","La réponse de Steam a expiré ou a déjà été utilisée.","Steam 응답이 만료되었거나 이미 사용되었습니다."],
- ["Steam не подтвердил подпись. Попробуйте ещё раз.","Steam could not verify the signature. Try again.","Steam n’a pas pu vérifier la signature. Réessayez.","Steam이 서명을 확인하지 못했습니다. 다시 시도해 주세요."],
- ["Этот код входа уже использован.","This sign-in code has already been used.","Ce code de connexion a déjà été utilisé.","이미 사용된 로그인 코드입니다."],
- ["Аккаунт заблокирован.","This account is banned.","Ce compte est suspendu.","이 계정은 이용이 정지되었습니다."],
- ["Войти в Zoigram","Sign in to Zoigram","Se connecter à Zoigram","Zoigram 로그인"],
- ["Сверьте код с кодом в игре:","Check that this code matches the one in your game:","Vérifiez que ce code correspond à celui affiché dans le jeu :","이 코드가 게임에 표시된 코드와 일치하는지 확인해 주세요:"],
- ["Продолжайте, только если вы сами начали этот вход. Один Steam-аккаунт — один профиль Zoigram.","Continue only if you started this sign-in yourself. One Steam account has one Zoigram profile.","Continuez uniquement si vous avez vous-même lancé cette connexion. Un compte Steam correspond à un profil Zoigram.","본인이 로그인을 시작한 경우에만 계속해 주세요. Steam 계정 하나당 Zoigram 프로필 하나가 연결됩니다."],
- ["Продолжить через Steam","Continue with Steam","Continuer avec Steam","Steam으로 계속"],
- ["Пароль вводится только на сайте Steam. Zoigram его не получает. Публикации доступны другим зарегистрированным игрокам.","Enter your password only on Steam's website. Zoigram never receives it. Other registered players can see your posts.","Saisissez votre mot de passe uniquement sur le site de Steam. Zoigram ne le reçoit jamais. Vos publications sont accessibles aux autres joueurs inscrits.","비밀번호는 Steam 웹사이트에서만 입력하세요. Zoigram은 비밀번호를 받지 않습니다. 다른 가입한 플레이어들이 게시물을 볼 수 있습니다."],
- ["Вход подтверждён","You're signed in","Connexion confirmée","로그인 완료"],
- ["Вернитесь в Zoigram в игре. Этот профиль доступен со всеми вашими персонажами и сохранениями.","Return to Zoigram in the game. This profile works with all your Zois and saved games.","Revenez dans Zoigram en jeu. Ce profil est disponible avec tous vos Zois et toutes vos sauvegardes.","게임 속 Zoigram으로 돌아가 주세요. 모든 조이와 저장 파일에서 이 프로필을 사용할 수 있습니다."],
- ["Фотографии из inZOI, которыми делятся реальные игроки.","Photos from inZOI, shared by real players.","Des photos d’inZOI partagées par de vrais joueurs.","실제 플레이어들이 공유하는 inZOI 사진."],
- ["Для входа откройте Zoigram в телефоне персонажа, нажмите «Войти через Steam».","To sign in, open Zoigram on your Zoi's phone and select “Sign in with Steam”.","Pour vous connecter, ouvrez Zoigram sur le téléphone de votre Zoi et sélectionnez « Se connecter avec Steam ».","로그인하려면 조이의 휴대폰에서 Zoigram을 열고 ‘Steam으로 로그인’을 선택하세요."],
- ["Сейчас это локальный тестовый сервер на вашем компьютере.","This is a local test server running on your computer.","Il s’agit d’un serveur de test local sur votre ordinateur.","현재 이 컴퓨터에서 실행 중인 로컬 테스트 서버입니다."],
- ["Уведомления","Notifications","Notifications","알림"],
- ["Сообщения","Messages","Messages","메시지"],
- ["Написать сообщение","Message","Envoyer un message","메시지 보내기"],
- ["Пока нет уведомлений","No notifications yet","Aucune notification pour le moment","아직 알림이 없습니다"],
- ["Лайки и подписки появятся здесь.","Likes and follows will appear here.","Les mentions J’aime et les abonnements apparaîtront ici.","좋아요와 팔로우 알림이 여기에 표시됩니다."],
- ["Новый лайк от {name}","New like from {name}","Nouvelle mention J’aime de {name}","{name}님의 새로운 좋아요"],
- ["Новая подписка от {name}","New follow from {name}","Nouvel abonnement de {name}","{name}님이 새로 팔로우했습니다"],
- ["Пока нет сообщений","No messages yet","Aucun message pour le moment","아직 메시지가 없습니다"],
- ["Напишите игроку из его профиля.","Message a player from their profile.","Envoyez un message à un joueur depuis son profil.","플레이어의 프로필에서 메시지를 보내 보세요."],
- ["Вы: {text}","You: {text}","Vous : {text}","나: {text}"],
- ["Показать более ранние","Show earlier messages","Afficher les messages précédents","이전 메시지 보기"],
- ["Начните переписку","Start a conversation","Démarrer une conversation","대화를 시작해 보세요"],
- ["Напишите первое сообщение.","Send the first message.","Envoyez le premier message.","첫 메시지를 보내 보세요."],
- ["Ваше сообщение","Your message","Votre message","메시지 입력"],
- ["Неверная страница уведомлений.","Invalid notifications page.","Page de notifications invalide.","올바르지 않은 알림 페이지입니다."],
- ["Неверный номер уведомления.","Invalid notification number.","Numéro de notification invalide.","올바르지 않은 알림 번호입니다."],
- ["Неверная страница диалогов.","Invalid conversations page.","Page de conversations invalide.","올바르지 않은 대화 페이지입니다."],
- ["Нельзя написать самому себе.","You cannot message yourself.","Vous ne pouvez pas vous envoyer de message.","자기 자신에게 메시지를 보낼 수 없습니다."],
- ["Диалог недоступен.","Conversation unavailable.","Conversation indisponible.","대화를 이용할 수 없습니다."],
- ["Неверная страница сообщений.","Invalid messages page.","Page de messages invalide.","올바르지 않은 메시지 페이지입니다."],
- ["Идентификатор сообщения уже использован.","This message ID has already been used.","Cet identifiant de message a déjà été utilisé.","이미 사용된 메시지 ID입니다."]
+  [
+    "Загрузить фото",
+    "Upload photo",
+    "Importer une photo",
+    "사진 업로드"
+  ],
+  [
+    "Удалить аватар",
+    "Remove profile photo",
+    "Supprimer l’avatar",
+    "프로필 사진 삭제"
+  ],
+  [
+    "Выберите фото в браузере. После загрузки аватар обновится здесь.",
+    "Choose a photo in your browser. Your avatar will update here after uploading.",
+    "Choisissez une photo dans votre navigateur. Votre avatar sera mis à jour ici après l’envoi.",
+    "브라우저에서 사진을 선택하세요. 업로드가 끝나면 여기에서 프로필 사진이 업데이트됩니다."
+  ],
+  [
+    "Аватар обновлён.",
+    "Profile photo updated.",
+    "Avatar mis à jour.",
+    "프로필 사진이 업데이트되었습니다."
+  ],
+  [
+    "Аватар удалён.",
+    "Profile photo removed.",
+    "Avatar supprimé.",
+    "프로필 사진이 삭제되었습니다."
+  ],
+  [
+    "Ссылка для аватара истекла. Откройте новую из профиля.",
+    "The avatar link has expired. Open a new one from your profile.",
+    "Le lien de l’avatar a expiré. Ouvrez-en un nouveau depuis votre profil.",
+    "프로필 사진 링크가 만료되었습니다. 프로필에서 새 링크를 열어 주세요."
+  ],
+  [
+    "Жалоба попадёт только владельцу Zoigram. Игрок не увидит, кто её отправил.",
+    "Only the Zoigram owner receives your report. The player will not see who sent it.",
+    "Seul le propriétaire de Zoigram reçoit votre signalement. Le joueur ne verra pas qui l’a envoyé.",
+    "신고는 Zoigram 운영자만 확인할 수 있습니다. 신고한 사람은 상대 플레이어에게 공개되지 않습니다."
+  ],
+  [
+    "Отмена",
+    "Cancel",
+    "Annuler",
+    "취소"
+  ],
+  [
+    "Нет связи с сервером. Попробуйте ещё раз.",
+    "Cannot connect to the server. Please try again.",
+    "Connexion au serveur impossible. Réessayez.",
+    "서버에 연결할 수 없습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Укажите HTTPS-адрес сервера.",
+    "Enter the server's HTTPS address.",
+    "Saisissez l’adresse HTTPS du serveur.",
+    "서버의 HTTPS 주소를 입력해 주세요."
+  ],
+  [
+    "По этому адресу нет совместимого сервера Zoigram.",
+    "No compatible Zoigram server at this address.",
+    "Aucun serveur Zoigram compatible à cette adresse.",
+    "이 주소에는 호환되는 Zoigram 서버가 없습니다."
+  ],
+  [
+    "Дождитесь загрузки персонажа.",
+    "Wait for your Zoi to load.",
+    "Attendez le chargement de votre Zoi.",
+    "조이가 로드될 때까지 기다려 주세요."
+  ],
+  [
+    "Не удалось открыть фоторежим.",
+    "Could not open Photo Mode.",
+    "Impossible d’ouvrir le mode Photo.",
+    "사진 모드를 열 수 없습니다."
+  ],
+  [
+    "Сначала сохраните снимок для текущего персонажа.",
+    "Save a photo of your current Zoi first.",
+    "Enregistrez d’abord une photo de votre Zoi actuel.",
+    "먼저 현재 조이의 사진을 저장해 주세요."
+  ],
+  [
+    "Подпись должна быть не длиннее 2200 символов.",
+    "Captions must be 2,200 characters or fewer.",
+    "La légende ne doit pas dépasser 2 200 caractères.",
+    "설명은 2,200자 이내로 입력해 주세요."
+  ],
+  [
+    "Не удалось подготовить снимок для отправки.",
+    "Could not prepare the photo for upload.",
+    "Impossible de préparer la photo pour l’envoi.",
+    "사진 업로드를 준비할 수 없습니다."
+  ],
+  [
+    "Публикация добавлена.",
+    "Post shared.",
+    "Publication partagée.",
+    "게시물이 게시되었습니다."
+  ],
+  [
+    "Скопируйте ссылку ниже и откройте её в браузере.",
+    "Copy the link below and open it in your browser.",
+    "Copiez le lien ci-dessous et ouvrez-le dans votre navigateur.",
+    "아래 링크를 복사해 브라우저에서 열어 주세요."
+  ],
+  [
+    "Сервер вернул неверный адрес входа.",
+    "The server returned an invalid sign-in address.",
+    "Le serveur a renvoyé une adresse de connexion invalide.",
+    "서버가 잘못된 로그인 주소를 반환했습니다."
+  ],
+  [
+    "Можно удалить только свою публикацию.",
+    "You can only delete your own posts.",
+    "Vous pouvez uniquement supprimer vos propres publications.",
+    "본인의 게시물만 삭제할 수 있습니다."
+  ],
+  [
+    "Публикация удалена.",
+    "Post deleted.",
+    "Publication supprimée.",
+    "게시물이 삭제되었습니다."
+  ],
+  [
+    "Жалоба отправлена.",
+    "Report submitted.",
+    "Signalement envoyé.",
+    "신고가 접수되었습니다."
+  ],
+  [
+    "Код входа истёк. Начните заново.",
+    "Your sign-in code has expired. Start again.",
+    "Votre code de connexion a expiré. Recommencez.",
+    "로그인 코드가 만료되었습니다. 다시 시작해 주세요."
+  ],
+  [
+    "Не удалось связаться с сетевым модулем.",
+    "Cannot reach the network module.",
+    "Impossible de joindre le module réseau.",
+    "네트워크 모듈에 연결할 수 없습니다."
+  ],
+  [
+    "Не удалось отправить запрос из игры.",
+    "Could not send the request from the game.",
+    "Impossible d’envoyer la requête depuis le jeu.",
+    "게임에서 요청을 전송할 수 없습니다."
+  ],
+  [
+    "Сетевой модуль не ответил. Повторите действие; после обновления мода может потребоваться перезапуск игры.",
+    "The network module did not respond. Try again; you may need to restart the game after updating the mod.",
+    "Le module réseau ne répond pas. Réessayez ; un redémarrage du jeu peut être nécessaire après une mise à jour du mod.",
+    "네트워크 모듈이 응답하지 않습니다. 다시 시도해 주세요. 모드 업데이트 후에는 게임을 다시 시작해야 할 수 있습니다."
+  ],
+  [
+    "Загрузка…",
+    "Loading…",
+    "Chargement…",
+    "불러오는 중…"
+  ],
+  [
+    "Загрузка фото…",
+    "Loading photo…",
+    "Chargement de la photo…",
+    "사진 불러오는 중…"
+  ],
+  [
+    "Фото недоступно",
+    "Photo unavailable",
+    "Photo indisponible",
+    "사진을 볼 수 없습니다"
+  ],
+  [
+    "Фото не загрузилось. Обновите ленту.",
+    "Could not load the photo. Refresh your feed.",
+    "La photo n’a pas été chargée. Actualisez le fil.",
+    "사진을 불러오지 못했습니다. 피드를 새로고침해 주세요."
+  ],
+  [
+    "Фото временно недоступно",
+    "Photo temporarily unavailable",
+    "Photo temporairement indisponible",
+    "일시적으로 사진을 볼 수 없습니다"
+  ],
+  [
+    "История в кадрах",
+    "A story in pictures",
+    "Une histoire en images",
+    "사진으로 담은 이야기"
+  ],
+  [
+    "Здесь появятся опубликованные фотографии.",
+    "Shared photos will appear here.",
+    "Les photos publiées apparaîtront ici.",
+    "게시한 사진이 여기에 표시됩니다."
+  ],
+  [
+    "Ваша лента подписок",
+    "Your following feed",
+    "Votre fil d’abonnements",
+    "팔로잉 피드"
+  ],
+  [
+    "Подпишитесь на авторов, чьи кадры вам нравятся.",
+    "Follow people whose photos you love.",
+    "Abonnez-vous aux personnes dont les photos vous plaisent.",
+    "마음에 드는 사진을 올리는 사람들을 팔로우해 보세요."
+  ],
+  [
+    "Первый кадр — за вами",
+    "Share the first moment",
+    "À vous le premier cliché",
+    "첫 순간을 공유해 보세요"
+  ],
+  [
+    "Нажмите ＋, чтобы поделиться моментом из inZOI.",
+    "Tap + to share a moment from inZOI.",
+    "Appuyez sur + pour partager un moment d’inZOI.",
+    "+를 눌러 inZOI 속 순간을 공유해 보세요."
+  ],
+  [
+    "Удалить публикацию",
+    "Delete post",
+    "Supprimer la publication",
+    "게시물 삭제"
+  ],
+  [
+    "Пожаловаться",
+    "Report",
+    "Signaler",
+    "신고"
+  ],
+  [
+    "Комментарии · {count}",
+    "Comments · {count}",
+    "Commentaires · {count}",
+    "댓글 · {count}"
+  ],
+  [
+    "Показать ещё",
+    "Show more",
+    "Voir plus",
+    "더 보기"
+  ],
+  [
+    "Для вас",
+    "For you",
+    "Pour vous",
+    "추천"
+  ],
+  [
+    "Подписки",
+    "Following",
+    "Abonnements",
+    "팔로잉"
+  ],
+  [
+    "постов",
+    "posts",
+    "publications",
+    "게시물"
+  ],
+  [
+    "подписчиков",
+    "followers",
+    "abonnés",
+    "팔로워"
+  ],
+  [
+    "подписок",
+    "following",
+    "abonnements",
+    "팔로잉"
+  ],
+  [
+    "Редактировать профиль",
+    "Edit profile",
+    "Modifier le profil",
+    "프로필 편집"
+  ],
+  [
+    "Вы подписаны",
+    "Following",
+    "Abonné·e",
+    "팔로잉"
+  ],
+  [
+    "Подписаться",
+    "Follow",
+    "S’abonner",
+    "팔로우"
+  ],
+  [
+    "Подтвердить блокировку",
+    "Confirm block",
+    "Confirmer le blocage",
+    "차단 확인"
+  ],
+  [
+    "Заблокировать",
+    "Block",
+    "Bloquer",
+    "차단"
+  ],
+  [
+    "Загрузка профиля…",
+    "Loading profile…",
+    "Chargement du profil…",
+    "프로필 불러오는 중…"
+  ],
+  [
+    "Поймайте момент",
+    "Capture a moment",
+    "Capturez l’instant",
+    "순간을 담아 보세요"
+  ],
+  [
+    "Сделайте кадр в фоторежиме, сохраните его и вернитесь сюда.",
+    "Take a photo in Photo Mode, save it, then return here.",
+    "Prenez une photo en mode Photo, enregistrez-la, puis revenez ici.",
+    "사진 모드에서 사진을 찍고 저장한 뒤 여기로 돌아와 주세요."
+  ],
+  [
+    "Переснять",
+    "Retake",
+    "Reprendre",
+    "다시 찍기"
+  ],
+  [
+    "Открыть фоторежим",
+    "Open Photo Mode",
+    "Ouvrir le mode Photo",
+    "사진 모드 열기"
+  ],
+  [
+    "Подпись",
+    "Caption",
+    "Légende",
+    "설명"
+  ],
+  [
+    "Пост увидят участники вашего сообщества.",
+    "Members of your community can see this post.",
+    "Les membres de votre communauté pourront voir cette publication.",
+    "커뮤니티 회원들이 이 게시물을 볼 수 있습니다."
+  ],
+  [
+    "Опубликовать",
+    "Share",
+    "Publier",
+    "게시"
+  ],
+  [
+    "Удалить эту публикацию?",
+    "Delete this post?",
+    "Supprimer cette publication ?",
+    "이 게시물을 삭제할까요?"
+  ],
+  [
+    "Фото, лайки и комментарии исчезнут из Zoigram. Отменить удаление нельзя.",
+    "The photo, likes and comments will be removed from Zoigram. This cannot be undone.",
+    "La photo, les mentions J’aime et les commentaires seront supprimés de Zoigram. Cette action est irréversible.",
+    "사진, 좋아요, 댓글이 Zoigram에서 삭제됩니다. 삭제한 게시물은 복구할 수 없습니다."
+  ],
+  [
+    "Оставить публикацию",
+    "Keep post",
+    "Conserver la publication",
+    "게시물 유지"
+  ],
+  [
+    "Пока тихо. Начните разговор.",
+    "No comments yet. Start the conversation.",
+    "Aucun commentaire pour le moment. Lancez la conversation.",
+    "아직 댓글이 없습니다. 대화를 시작해 보세요."
+  ],
+  [
+    "Удалить",
+    "Delete",
+    "Supprimer",
+    "삭제"
+  ],
+  [
+    "Ещё комментарии",
+    "More comments",
+    "Plus de commentaires",
+    "댓글 더 보기"
+  ],
+  [
+    "Ваш комментарий",
+    "Your comment",
+    "Votre commentaire",
+    "댓글 작성"
+  ],
+  [
+    "Отправить",
+    "Send",
+    "Envoyer",
+    "보내기"
+  ],
+  [
+    "ID аккаунта",
+    "Account ID",
+    "Identifiant du compte",
+    "계정 ID"
+  ],
+  [
+    "Закреплён за аккаунтом. Изменение через модератора.",
+    "Assigned to your account. Only a moderator can change it.",
+    "Attribué à votre compte. Seule la modération peut le modifier.",
+    "계정에 부여된 ID입니다. 관리자만 변경할 수 있습니다."
+  ],
+  [
+    "Имя",
+    "Name",
+    "Nom",
+    "이름"
+  ],
+  [
+    "О себе",
+    "Bio",
+    "Bio",
+    "소개"
+  ],
+  [
+    "Сохранить",
+    "Save",
+    "Enregistrer",
+    "저장"
+  ],
+  [
+    "Мои подписки",
+    "People I follow",
+    "Mes abonnements",
+    "내 팔로잉"
+  ],
+  [
+    "Заблокированные аккаунты",
+    "Blocked accounts",
+    "Comptes bloqués",
+    "차단한 계정"
+  ],
+  [
+    "Ваше сообщество",
+    "Your community",
+    "Votre communauté",
+    "내 커뮤니티"
+  ],
+  [
+    "Адрес сервера Zoigram",
+    "Zoigram server address",
+    "Adresse du serveur Zoigram",
+    "Zoigram 서버 주소"
+  ],
+  [
+    "Подключиться",
+    "Connect",
+    "Se connecter",
+    "연결"
+  ],
+  [
+    "Локальное сообщество на этом компьютере.",
+    "A local community on this computer.",
+    "Une communauté locale sur cet ordinateur.",
+    "이 컴퓨터의 로컬 커뮤니티입니다."
+  ],
+  [
+    "Выйти из аккаунта",
+    "Sign out",
+    "Se déconnecter",
+    "로그아웃"
+  ],
+  [
+    "Жизнь. В вашем кадре.",
+    "Life. Through your lens.",
+    "La vie. À travers votre regard.",
+    "당신의 시선으로 담은 일상."
+  ],
+  [
+    "Фотографии, люди и моменты из inZOI.",
+    "Photos, people and moments from inZOI.",
+    "Des photos, des gens et des instants d’inZOI.",
+    "inZOI 속 사진, 사람, 그리고 순간들."
+  ],
+  [
+    "Код: {code}",
+    "Code: {code}",
+    "Code : {code}",
+    "코드: {code}"
+  ],
+  [
+    "Ссылка для браузера · Ctrl+A, Ctrl+C",
+    "Browser link · Ctrl+A, Ctrl+C",
+    "Lien à ouvrir · Ctrl+A, Ctrl+C",
+    "브라우저 링크 · Ctrl+A, Ctrl+C"
+  ],
+  [
+    "Подтвердите вход в Steam и вернитесь в игру.",
+    "Sign in through Steam, then return to the game.",
+    "Confirmez la connexion sur Steam, puis revenez dans le jeu.",
+    "Steam에서 로그인을 확인한 뒤 게임으로 돌아와 주세요."
+  ],
+  [
+    "Открыть страницу входа",
+    "Open sign-in page",
+    "Ouvrir la page de connexion",
+    "로그인 페이지 열기"
+  ],
+  [
+    "Начать заново",
+    "Start again",
+    "Recommencer",
+    "다시 시작"
+  ],
+  [
+    "Войти через Steam",
+    "Sign in with Steam",
+    "Se connecter avec Steam",
+    "Steam으로 로그인"
+  ],
+  [
+    "Один Steam-аккаунт — один профиль.",
+    "One Steam account, one profile.",
+    "Un compte Steam, un profil.",
+    "Steam 계정 하나당 프로필 하나."
+  ],
+  [
+    "Что произошло?",
+    "What happened?",
+    "Que s’est-il passé ?",
+    "무슨 일이 있었나요?"
+  ],
+  [
+    "Спам или нежелательный контент",
+    "Spam or unwanted content",
+    "Spam ou contenu indésirable",
+    "스팸 또는 원치 않는 콘텐츠"
+  ],
+  [
+    "Отправить жалобу",
+    "Submit report",
+    "Envoyer le signalement",
+    "신고 보내기"
+  ],
+  [
+    "Разблокировать",
+    "Unblock",
+    "Débloquer",
+    "차단 해제"
+  ],
+  [
+    "Здесь пока никого.",
+    "No one here yet.",
+    "Il n’y a encore personne ici.",
+    "아직 아무도 없습니다."
+  ],
+  [
+    "Лента",
+    "Feed",
+    "Fil",
+    "피드"
+  ],
+  [
+    "Профиль",
+    "Profile",
+    "Profil",
+    "프로필"
+  ],
+  [
+    "Новый пост",
+    "New post",
+    "Créer",
+    "새 게시물"
+  ],
+  [
+    "Комментарии",
+    "Comments",
+    "Commentaires",
+    "댓글"
+  ],
+  [
+    "Редактировать",
+    "Edit profile",
+    "Modifier",
+    "프로필 편집"
+  ],
+  [
+    "Настройки",
+    "Settings",
+    "Paramètres",
+    "설정"
+  ],
+  [
+    "Заблокированные",
+    "Blocked",
+    "Blocages",
+    "차단 목록"
+  ],
+  [
+    "Жалоба",
+    "Report",
+    "Signalement",
+    "신고"
+  ],
+  [
+    "Публикация",
+    "Post",
+    "Publication",
+    "게시물"
+  ],
+  [
+    "Обновить",
+    "Refresh",
+    "Actualiser",
+    "새로고침"
+  ],
+  [
+    "Сервер",
+    "Settings",
+    "Paramètres",
+    "설정"
+  ],
+  [
+    "Язык",
+    "Language",
+    "Langue",
+    "언어"
+  ],
+  [
+    "Как в игре",
+    "Game language",
+    "Langue du jeu",
+    "게임 언어"
+  ],
+  [
+    "Язык интерфейса Zoigram. Публикации и имена игроков не переводятся.",
+    "Zoigram interface language. Posts and player names are not translated.",
+    "Langue de l’interface Zoigram. Les publications et les noms des joueurs ne sont pas traduits.",
+    "Zoigram 인터페이스 언어입니다. 게시물과 플레이어 이름은 번역되지 않습니다."
+  ],
+  [
+    "Укажите адрес сервера.",
+    "Enter a server address.",
+    "Saisissez une adresse de serveur.",
+    "서버 주소를 입력해 주세요."
+  ],
+  [
+    "Нужен HTTPS-адрес сервера без пути.",
+    "Enter an HTTPS server address without a path.",
+    "Saisissez une adresse HTTPS de serveur, sans chemin.",
+    "경로를 제외한 서버의 HTTPS 주소를 입력해 주세요."
+  ],
+  [
+    "Сервер или файл не ответил вовремя. Попробуйте снова.",
+    "The server or file request timed out. Try again.",
+    "Le serveur ou le fichier n’a pas répondu à temps. Réessayez.",
+    "서버 또는 파일 요청 시간이 초과되었습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Не удалось прочитать снимок.",
+    "Could not read the photo.",
+    "Impossible de lire la photo.",
+    "사진을 읽을 수 없습니다."
+  ],
+  [
+    "Сервер вернул непонятный ответ.",
+    "The server returned an unreadable response.",
+    "Le serveur a renvoyé une réponse illisible.",
+    "서버 응답을 읽을 수 없습니다."
+  ],
+  [
+    "Нет связи с сервером. Проверьте интернет и повторите.",
+    "Cannot connect to the server. Check your internet connection and try again.",
+    "Connexion au serveur impossible. Vérifiez votre connexion Internet et réessayez.",
+    "서버에 연결할 수 없습니다. 인터넷 연결을 확인하고 다시 시도해 주세요."
+  ],
+  [
+    "Сервер не ответил вовремя. Попробуйте снова.",
+    "The server did not respond in time. Try again.",
+    "Le serveur n’a pas répondu à temps. Réessayez.",
+    "서버 응답 시간이 초과되었습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Неизвестное сетевое действие.",
+    "Unknown network action.",
+    "Action réseau inconnue.",
+    "알 수 없는 네트워크 작업입니다."
+  ],
+  [
+    "Войдите через Steam.",
+    "Sign in with Steam.",
+    "Connectez-vous avec Steam.",
+    "Steam으로 로그인해 주세요."
+  ],
+  [
+    "Неверный снимок.",
+    "Invalid photo.",
+    "Photo invalide.",
+    "올바르지 않은 사진입니다."
+  ],
+  [
+    "Чтение снимка…",
+    "Reading photo…",
+    "Lecture de la photo…",
+    "사진 읽는 중…"
+  ],
+  [
+    "Снимок пустой или больше 8 МБ. Уменьшите разрешение в фоторежиме.",
+    "The photo is empty or exceeds 8 MB. Lower the resolution in Photo Mode.",
+    "La photo est vide ou dépasse 8 Mo. Réduisez la résolution en mode Photo.",
+    "사진이 비어 있거나 8MB를 초과합니다. 사진 모드에서 해상도를 낮춰 주세요."
+  ],
+  [
+    "Подготовка снимка…",
+    "Preparing photo…",
+    "Préparation de la photo…",
+    "사진 준비 중…"
+  ],
+  [
+    "Отправка фотографии…",
+    "Uploading photo…",
+    "Envoi de la photo…",
+    "사진 업로드 중…"
+  ],
+  [
+    "Фоторежим уже открывается",
+    "Photo Mode is already opening",
+    "Le mode Photo est déjà en cours d’ouverture",
+    "사진 모드를 여는 중입니다"
+  ],
+  [
+    "Камера сейчас недоступна",
+    "Camera currently unavailable",
+    "Appareil photo indisponible pour le moment",
+    "지금은 카메라를 사용할 수 없습니다"
+  ],
+  [
+    "Снимок ещё не готов",
+    "Photo not ready yet",
+    "La photo n’est pas encore prête",
+    "아직 사진이 준비되지 않았습니다"
+  ],
+  [
+    "Не удалось сохранить фото для публикации",
+    "Could not save the photo for your post",
+    "Impossible d’enregistrer la photo pour la publication",
+    "게시할 사진을 저장할 수 없습니다"
+  ],
+  [
+    "Не удалось получить снимок. Повторите съёмку.",
+    "Could not capture the photo. Take another one.",
+    "Impossible de récupérer la photo. Reprenez-en une.",
+    "사진을 가져올 수 없습니다. 다시 촬영해 주세요."
+  ],
+  [
+    "Камера не открылась. Повторите попытку.",
+    "The camera did not open. Try again.",
+    "L’appareil photo ne s’est pas ouvert. Réessayez.",
+    "카메라가 열리지 않았습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Проверьте текст и его длину.",
+    "Check the text and its length.",
+    "Vérifiez le texte et sa longueur.",
+    "텍스트와 글자 수를 확인해 주세요."
+  ],
+  [
+    "Заполните поле.",
+    "Fill in this field.",
+    "Remplissez ce champ.",
+    "이 항목을 입력해 주세요."
+  ],
+  [
+    "Не указан идентификатор отправки.",
+    "Missing submission ID.",
+    "Identifiant d’envoi manquant.",
+    "전송 ID가 없습니다."
+  ],
+  [
+    "Слишком много запросов. Подождите немного.",
+    "Too many requests. Please wait a moment.",
+    "Trop de requêtes. Patientez un instant.",
+    "요청이 너무 많습니다. 잠시 기다려 주세요."
+  ],
+  [
+    "Сервис занят. Попробуйте позже.",
+    "The service is busy. Try again later.",
+    "Le service est occupé. Réessayez plus tard.",
+    "서비스가 혼잡합니다. 나중에 다시 시도해 주세요."
+  ],
+  [
+    "Профиль недоступен.",
+    "Profile unavailable.",
+    "Profil indisponible.",
+    "프로필을 볼 수 없습니다."
+  ],
+  [
+    "Войдите через Steam заново.",
+    "Sign in with Steam again.",
+    "Reconnectez-vous avec Steam.",
+    "Steam으로 다시 로그인해 주세요."
+  ],
+  [
+    "Публикация недоступна.",
+    "Post unavailable.",
+    "Publication indisponible.",
+    "게시물을 볼 수 없습니다."
+  ],
+  [
+    "Ожидается JSON.",
+    "Expected a JSON request.",
+    "Une requête JSON est attendue.",
+    "JSON 형식의 요청이 필요합니다."
+  ],
+  [
+    "Слишком большой файл.",
+    "The file is too large.",
+    "Le fichier est trop volumineux.",
+    "파일이 너무 큽니다."
+  ],
+  [
+    "Не удалось прочитать запрос.",
+    "Could not read the request.",
+    "Impossible de lire la requête.",
+    "요청을 읽을 수 없습니다."
+  ],
+  [
+    "Код входа неверен.",
+    "Invalid sign-in code.",
+    "Code de connexion invalide.",
+    "올바르지 않은 로그인 코드입니다."
+  ],
+  [
+    "Вход уже завершён. Если связь прервалась, начните заново.",
+    "Sign-in is already complete. If the connection was interrupted, start again.",
+    "La connexion est déjà terminée. Si elle a été interrompue, recommencez.",
+    "로그인이 이미 완료되었습니다. 연결이 끊겼다면 다시 시작해 주세요."
+  ],
+  [
+    "Код входа истёк. Начните заново в игре.",
+    "Your sign-in code has expired. Start again in the game.",
+    "Votre code de connexion a expiré. Recommencez dans le jeu.",
+    "로그인 코드가 만료되었습니다. 게임에서 다시 시작해 주세요."
+  ],
+  [
+    "Ссылка истекла. Обновите ленту.",
+    "This link has expired. Refresh your feed.",
+    "Ce lien a expiré. Actualisez le fil.",
+    "링크가 만료되었습니다. 피드를 새로고침해 주세요."
+  ],
+  [
+    "Неверная ссылка.",
+    "Invalid link.",
+    "Lien invalide.",
+    "올바르지 않은 링크입니다."
+  ],
+  [
+    "Войдите заново.",
+    "Sign in again.",
+    "Reconnectez-vous.",
+    "다시 로그인해 주세요."
+  ],
+  [
+    "Страница не найдена.",
+    "Page not found.",
+    "Page introuvable.",
+    "페이지를 찾을 수 없습니다."
+  ],
+  [
+    "ID аккаунта закреплён. Изменить его может только модератор.",
+    "Your account ID is fixed. Only a moderator can change it.",
+    "L’identifiant du compte est fixe. Seule la modération peut le modifier.",
+    "계정 ID는 고정되어 있습니다. 관리자만 변경할 수 있습니다."
+  ],
+  [
+    "Неверный фильтр ленты.",
+    "Invalid feed filter.",
+    "Filtre du fil invalide.",
+    "올바르지 않은 피드 필터입니다."
+  ],
+  [
+    "Сервис обрабатывает фотографии. Попробуйте через несколько секунд.",
+    "Photos are being processed. Try again in a few seconds.",
+    "Des photos sont en cours de traitement. Réessayez dans quelques secondes.",
+    "사진을 처리하는 중입니다. 몇 초 후 다시 시도해 주세요."
+  ],
+  [
+    "Не удалось прочитать фотографию.",
+    "Could not read the photo.",
+    "Impossible de lire la photo.",
+    "사진을 읽을 수 없습니다."
+  ],
+  [
+    "Фото должно быть не больше 8 МБ.",
+    "Photos must be 8 MB or smaller.",
+    "La photo ne doit pas dépasser 8 Mo.",
+    "사진은 8MB 이하여야 합니다."
+  ],
+  [
+    "Этот запрос уже использован для другого поста.",
+    "This request was already used for another post.",
+    "Cette requête a déjà été utilisée pour une autre publication.",
+    "이 요청은 이미 다른 게시물에 사용되었습니다."
+  ],
+  [
+    "Можно опубликовать до 20 фотографий за сутки.",
+    "You can share up to 20 photos in 24 hours.",
+    "Vous pouvez publier jusqu’à 20 photos en 24 heures.",
+    "24시간 동안 최대 20장의 사진을 게시할 수 있습니다."
+  ],
+  [
+    "Выберите обычное фото PNG, JPEG или WebP размером от 64×64.",
+    "Choose a still PNG, JPEG or WebP photo of at least 64×64 pixels.",
+    "Choisissez une photo fixe PNG, JPEG ou WebP d’au moins 64 × 64 pixels.",
+    "64×64픽셀 이상의 PNG, JPEG 또는 WebP 정지 사진을 선택해 주세요."
+  ],
+  [
+    "Фотография повреждена или не поддерживается.",
+    "The photo is damaged or unsupported.",
+    "La photo est endommagée ou non prise en charge.",
+    "사진이 손상되었거나 지원되지 않는 형식입니다."
+  ],
+  [
+    "Идентификатор запроса уже использован.",
+    "This request ID has already been used.",
+    "Cet identifiant de requête a déjà été utilisé.",
+    "이미 사용된 요청 ID입니다."
+  ],
+  [
+    "Достигнут лимит публикаций на сегодня.",
+    "You have reached your daily post limit.",
+    "Vous avez atteint votre limite quotidienne de publications.",
+    "오늘의 게시 한도에 도달했습니다."
+  ],
+  [
+    "Хранилище заполнено. Владелец сервера уже может освободить место.",
+    "Storage is full. The server owner can free up space.",
+    "Le stockage est plein. Le propriétaire du serveur peut libérer de l’espace.",
+    "저장 공간이 가득 찼습니다. 서버 소유자가 공간을 확보할 수 있습니다."
+  ],
+  [
+    "Неверная страница комментариев.",
+    "Invalid comments page.",
+    "Page de commentaires invalide.",
+    "올바르지 않은 댓글 페이지입니다."
+  ],
+  [
+    "Идентификатор комментария уже использован.",
+    "This comment ID has already been used.",
+    "Cet identifiant de commentaire a déjà été utilisé.",
+    "이미 사용된 댓글 ID입니다."
+  ],
+  [
+    "Комментарий недоступен.",
+    "Comment unavailable.",
+    "Commentaire indisponible.",
+    "댓글을 볼 수 없습니다."
+  ],
+  [
+    "Можно удалить только свой комментарий.",
+    "You can only delete your own comments.",
+    "Vous pouvez uniquement supprimer vos propres commentaires.",
+    "본인의 댓글만 삭제할 수 있습니다."
+  ],
+  [
+    "Это ваш профиль.",
+    "This is your own profile.",
+    "Il s’agit de votre propre profil.",
+    "본인의 프로필입니다."
+  ],
+  [
+    "Неверный тип жалобы.",
+    "Invalid report type.",
+    "Type de signalement invalide.",
+    "올바르지 않은 신고 유형입니다."
+  ],
+  [
+    "Комментарий не найден.",
+    "Comment not found.",
+    "Commentaire introuvable.",
+    "댓글을 찾을 수 없습니다."
+  ],
+  [
+    "Действие не найдено.",
+    "Action not found.",
+    "Action introuvable.",
+    "작업을 찾을 수 없습니다."
+  ],
+  [
+    "Ошибка сервера. Попробуйте позже.",
+    "Server error. Try again later.",
+    "Erreur du serveur. Réessayez plus tard.",
+    "서버 오류입니다. 나중에 다시 시도해 주세요."
+  ],
+  [
+    "Код входа истёк. Начните вход заново в игре.",
+    "Your sign-in code has expired. Start signing in again from the game.",
+    "Votre code de connexion a expiré. Relancez la connexion depuis le jeu.",
+    "로그인 코드가 만료되었습니다. 게임에서 로그인을 다시 시작해 주세요."
+  ],
+  [
+    "Повторяющиеся параметры входа.",
+    "Duplicate sign-in parameters.",
+    "Paramètres de connexion en double.",
+    "로그인 매개변수가 중복되었습니다."
+  ],
+  [
+    "Сеанс входа истёк или открыт в другом браузере.",
+    "Your sign-in session has expired or was opened in another browser.",
+    "Votre session de connexion a expiré ou a été ouverte dans un autre navigateur.",
+    "로그인 세션이 만료되었거나 다른 브라우저에서 열렸습니다."
+  ],
+  [
+    "Steam вернул неверный ответ.",
+    "Steam returned an invalid response.",
+    "Steam a renvoyé une réponse invalide.",
+    "Steam이 잘못된 응답을 반환했습니다."
+  ],
+  [
+    "Не удалось проверить Steam-аккаунт.",
+    "Could not verify the Steam account.",
+    "Impossible de vérifier le compte Steam.",
+    "Steam 계정을 확인할 수 없습니다."
+  ],
+  [
+    "Неполная подпись Steam.",
+    "Steam's verification signature is incomplete.",
+    "La signature de vérification Steam est incomplète.",
+    "Steam 인증 서명이 불완전합니다."
+  ],
+  [
+    "Ответ Steam устарел или уже использован.",
+    "Steam's response has expired or was already used.",
+    "La réponse de Steam a expiré ou a déjà été utilisée.",
+    "Steam 응답이 만료되었거나 이미 사용되었습니다."
+  ],
+  [
+    "Steam не подтвердил подпись. Попробуйте ещё раз.",
+    "Steam could not verify the signature. Try again.",
+    "Steam n’a pas pu vérifier la signature. Réessayez.",
+    "Steam이 서명을 확인하지 못했습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Этот код входа уже использован.",
+    "This sign-in code has already been used.",
+    "Ce code de connexion a déjà été utilisé.",
+    "이미 사용된 로그인 코드입니다."
+  ],
+  [
+    "Аккаунт заблокирован.",
+    "This account is banned.",
+    "Ce compte est suspendu.",
+    "이 계정은 이용이 정지되었습니다."
+  ],
+  [
+    "Войти в Zoigram",
+    "Sign in to Zoigram",
+    "Se connecter à Zoigram",
+    "Zoigram 로그인"
+  ],
+  [
+    "Сверьте код с кодом в игре:",
+    "Check that this code matches the one in your game:",
+    "Vérifiez que ce code correspond à celui affiché dans le jeu :",
+    "이 코드가 게임에 표시된 코드와 일치하는지 확인해 주세요:"
+  ],
+  [
+    "Продолжайте, только если вы сами начали этот вход. Один Steam-аккаунт — один профиль Zoigram.",
+    "Continue only if you started this sign-in yourself. One Steam account has one Zoigram profile.",
+    "Continuez uniquement si vous avez vous-même lancé cette connexion. Un compte Steam correspond à un profil Zoigram.",
+    "본인이 로그인을 시작한 경우에만 계속해 주세요. Steam 계정 하나당 Zoigram 프로필 하나가 연결됩니다."
+  ],
+  [
+    "Продолжить через Steam",
+    "Continue with Steam",
+    "Continuer avec Steam",
+    "Steam으로 계속"
+  ],
+  [
+    "Пароль вводится только на сайте Steam. Zoigram его не получает. Публикации доступны другим зарегистрированным игрокам.",
+    "Enter your password only on Steam's website. Zoigram never receives it. Other registered players can see your posts.",
+    "Saisissez votre mot de passe uniquement sur le site de Steam. Zoigram ne le reçoit jamais. Vos publications sont accessibles aux autres joueurs inscrits.",
+    "비밀번호는 Steam 웹사이트에서만 입력하세요. Zoigram은 비밀번호를 받지 않습니다. 다른 가입한 플레이어들이 게시물을 볼 수 있습니다."
+  ],
+  [
+    "Вход подтверждён",
+    "You're signed in",
+    "Connexion confirmée",
+    "로그인 완료"
+  ],
+  [
+    "Вернитесь в Zoigram в игре. Этот профиль доступен со всеми вашими персонажами и сохранениями.",
+    "Return to Zoigram in the game. This profile works with all your Zois and saved games.",
+    "Revenez dans Zoigram en jeu. Ce profil est disponible avec tous vos Zois et toutes vos sauvegardes.",
+    "게임 속 Zoigram으로 돌아가 주세요. 모든 조이와 저장 파일에서 이 프로필을 사용할 수 있습니다."
+  ],
+  [
+    "Фотографии из inZOI, которыми делятся реальные игроки.",
+    "Photos from inZOI, shared by real players.",
+    "Des photos d’inZOI partagées par de vrais joueurs.",
+    "실제 플레이어들이 공유하는 inZOI 사진."
+  ],
+  [
+    "Для входа откройте Zoigram в телефоне персонажа, нажмите «Войти через Steam».",
+    "To sign in, open Zoigram on your Zoi's phone and select “Sign in with Steam”.",
+    "Pour vous connecter, ouvrez Zoigram sur le téléphone de votre Zoi et sélectionnez « Se connecter avec Steam ».",
+    "로그인하려면 조이의 휴대폰에서 Zoigram을 열고 ‘Steam으로 로그인’을 선택하세요."
+  ],
+  [
+    "Сейчас это локальный тестовый сервер на вашем компьютере.",
+    "This is a local test server running on your computer.",
+    "Il s’agit d’un serveur de test local sur votre ordinateur.",
+    "현재 이 컴퓨터에서 실행 중인 로컬 테스트 서버입니다."
+  ],
+  [
+    "Уведомления",
+    "Notifications",
+    "Notifications",
+    "알림"
+  ],
+  [
+    "Сообщения",
+    "Messages",
+    "Messages",
+    "메시지"
+  ],
+  [
+    "Написать сообщение",
+    "Message",
+    "Envoyer un message",
+    "메시지 보내기"
+  ],
+  [
+    "Пока нет уведомлений",
+    "No notifications yet",
+    "Aucune notification pour le moment",
+    "아직 알림이 없습니다"
+  ],
+  [
+    "Лайки и подписки появятся здесь.",
+    "Likes and follows will appear here.",
+    "Les mentions J’aime et les abonnements apparaîtront ici.",
+    "좋아요와 팔로우 알림이 여기에 표시됩니다."
+  ],
+  [
+    "Новый лайк от {name}",
+    "New like from {name}",
+    "Nouvelle mention J’aime de {name}",
+    "{name}님의 새로운 좋아요"
+  ],
+  [
+    "Новая подписка от {name}",
+    "New follow from {name}",
+    "Nouvel abonnement de {name}",
+    "{name}님이 새로 팔로우했습니다"
+  ],
+  [
+    "Пока нет сообщений",
+    "No messages yet",
+    "Aucun message pour le moment",
+    "아직 메시지가 없습니다"
+  ],
+  [
+    "Напишите игроку из его профиля.",
+    "Message a player from their profile.",
+    "Envoyez un message à un joueur depuis son profil.",
+    "플레이어의 프로필에서 메시지를 보내 보세요."
+  ],
+  [
+    "Вы: {text}",
+    "You: {text}",
+    "Vous : {text}",
+    "나: {text}"
+  ],
+  [
+    "Показать более ранние",
+    "Show earlier messages",
+    "Afficher les messages précédents",
+    "이전 메시지 보기"
+  ],
+  [
+    "Начните переписку",
+    "Start a conversation",
+    "Démarrer une conversation",
+    "대화를 시작해 보세요"
+  ],
+  [
+    "Напишите первое сообщение.",
+    "Send the first message.",
+    "Envoyez le premier message.",
+    "첫 메시지를 보내 보세요."
+  ],
+  [
+    "Ваше сообщение",
+    "Your message",
+    "Votre message",
+    "메시지 입력"
+  ],
+  [
+    "Неверная страница уведомлений.",
+    "Invalid notifications page.",
+    "Page de notifications invalide.",
+    "올바르지 않은 알림 페이지입니다."
+  ],
+  [
+    "Неверный номер уведомления.",
+    "Invalid notification number.",
+    "Numéro de notification invalide.",
+    "올바르지 않은 알림 번호입니다."
+  ],
+  [
+    "Неверная страница диалогов.",
+    "Invalid conversations page.",
+    "Page de conversations invalide.",
+    "올바르지 않은 대화 페이지입니다."
+  ],
+  [
+    "Нельзя написать самому себе.",
+    "You cannot message yourself.",
+    "Vous ne pouvez pas vous envoyer de message.",
+    "자기 자신에게 메시지를 보낼 수 없습니다."
+  ],
+  [
+    "Диалог недоступен.",
+    "Conversation unavailable.",
+    "Conversation indisponible.",
+    "대화를 이용할 수 없습니다."
+  ],
+  [
+    "Неверная страница сообщений.",
+    "Invalid messages page.",
+    "Page de messages invalide.",
+    "올바르지 않은 메시지 페이지입니다."
+  ],
+  [
+    "Идентификатор сообщения уже использован.",
+    "This message ID has already been used.",
+    "Cet identifiant de message a déjà été utilisé.",
+    "이미 사용된 메시지 ID입니다."
+  ],
+  [
+    "Вход занят. Попробуйте через несколько секунд.",
+    "Sign-in is busy. Try again in a few seconds.",
+    "La connexion est occupée. Réessayez dans quelques secondes.",
+    "로그인 요청이 많습니다. 잠시 후 다시 시도해 주세요."
+  ],
+  [
+    "Откройте форму на сайте Zoigram.",
+    "Open this form on the Zoigram website.",
+    "Ouvrez ce formulaire sur le site de Zoigram.",
+    "Zoigram 웹사이트에서 이 양식을 열어 주세요."
+  ],
+  [
+    "Пароль: от 15 до 128 символов. Можно использовать фразу.",
+    "Use 15–128 characters for your password. A passphrase works too.",
+    "Mot de passe : 15 à 128 caractères. Vous pouvez utiliser une phrase.",
+    "비밀번호는 15~128자여야 합니다. 문장도 사용할 수 있습니다."
+  ],
+  [
+    "Логин: 3–32 латинские буквы, цифры или знак _.",
+    "Username: 3–32 Latin letters, digits or underscores.",
+    "Identifiant : 3 à 32 lettres latines, chiffres ou caractères _.",
+    "로그인 아이디는 영문, 숫자 또는 _로 3~32자여야 합니다."
+  ],
+  [
+    "Страница входа устарела. Откройте её заново из игры.",
+    "This sign-in page has expired. Open a new one from the game.",
+    "Cette page de connexion a expiré. Rouvrez-la depuis le jeu.",
+    "로그인 페이지가 만료되었습니다. 게임에서 다시 열어 주세요."
+  ],
+  [
+    "Неверный логин или пароль.",
+    "Incorrect username or password.",
+    "Identifiant ou mot de passe incorrect.",
+    "아이디 또는 비밀번호가 올바르지 않습니다."
+  ],
+  [
+    "Неверное действие для этой страницы.",
+    "This action is not available on this page.",
+    "Cette action n’est pas disponible sur cette page.",
+    "이 페이지에서는 이 작업을 할 수 없습니다."
+  ],
+  [
+    "Создать аккаунт",
+    "Create account",
+    "Créer un compte",
+    "계정 만들기"
+  ],
+  [
+    "Восстановить доступ",
+    "Recover account",
+    "Récupérer le compte",
+    "계정 복구"
+  ],
+  [
+    "Настроить вход",
+    "Set up sign-in",
+    "Configurer la connexion",
+    "로그인 설정"
+  ],
+  [
+    "Изменить пароль",
+    "Change password",
+    "Modifier le mot de passe",
+    "비밀번호 변경"
+  ],
+  [
+    "Ваш профиль, публикации и публичный ID сохранятся.",
+    "Your profile, posts and public ID will stay the same.",
+    "Votre profil, vos publications et votre ID public seront conservés.",
+    "프로필, 게시물 및 공개 ID는 그대로 유지됩니다."
+  ],
+  [
+    "Продолжайте, только если вы сами начали этот вход.",
+    "Continue only if you started this sign-in yourself.",
+    "Continuez uniquement si vous avez vous-même demandé cette connexion.",
+    "직접 로그인을 시작한 경우에만 계속하세요."
+  ],
+  [
+    "Логин",
+    "Username",
+    "Identifiant",
+    "로그인 아이디"
+  ],
+  [
+    "Пароль",
+    "Password",
+    "Mot de passe",
+    "비밀번호"
+  ],
+  [
+    "Новый пароль",
+    "New password",
+    "Nouveau mot de passe",
+    "새 비밀번호"
+  ],
+  [
+    "Текущий пароль",
+    "Current password",
+    "Mot de passe actuel",
+    "현재 비밀번호"
+  ],
+  [
+    "Резервный код",
+    "Recovery code",
+    "Code de récupération",
+    "복구 코드"
+  ],
+  [
+    "Войти",
+    "Sign in",
+    "Se connecter",
+    "로그인"
+  ],
+  [
+    "Логин нужен только для входа. Другие игроки видят ваш публичный ID.",
+    "Your username is only used to sign in. Other players see your public ID.",
+    "Votre identifiant sert uniquement à vous connecter. Les autres joueurs voient votre ID public.",
+    "로그인 아이디는 로그인에만 사용됩니다. 다른 플레이어에게는 공개 ID가 표시됩니다."
+  ],
+  [
+    "Почта и Steam не нужны. Сохраните резервный код для восстановления доступа.",
+    "No email or Steam needed. Save your recovery code to restore access.",
+    "Aucun e-mail ni compte Steam requis. Conservez votre code de récupération.",
+    "이메일이나 Steam은 필요하지 않습니다. 계정 복구를 위해 복구 코드를 보관하세요."
+  ],
+  [
+    "Готово",
+    "Done",
+    "Terminé",
+    "완료"
+  ],
+  [
+    "Вернитесь в Zoigram в игре. Ваш профиль готов.",
+    "Return to Zoigram in the game. Your profile is ready.",
+    "Retournez dans Zoigram en jeu. Votre profil est prêt.",
+    "게임의 Zoigram으로 돌아가세요. 프로필이 준비되었습니다."
+  ],
+  [
+    "Сохраните резервный код",
+    "Save your recovery code",
+    "Conservez votre code de récupération",
+    "복구 코드를 보관하세요"
+  ],
+  [
+    "Он показывается один раз. Храните его отдельно: с ним можно восстановить доступ без почты.",
+    "This code is shown once. Keep it somewhere safe to recover your account without email.",
+    "Ce code n’est affiché qu’une fois. Gardez-le en lieu sûr pour récupérer votre compte sans e-mail.",
+    "이 코드는 한 번만 표시됩니다. 이메일 없이 계정을 복구할 수 있도록 안전한 곳에 보관하세요."
+  ],
+  [
+    "Неверный формат формы.",
+    "Invalid form format.",
+    "Format de formulaire incorrect.",
+    "양식 형식이 올바르지 않습니다."
+  ],
+  [
+    "Слишком большой запрос.",
+    "The request is too large.",
+    "La requête est trop volumineuse.",
+    "요청이 너무 큽니다."
+  ],
+  [
+    "Настройки входа",
+    "Sign-in settings",
+    "Paramètres de connexion",
+    "로그인 설정"
+  ],
+  [
+    "Неверный логин или резервный код.",
+    "Incorrect username or recovery code.",
+    "Identifiant ou code de récupération incorrect.",
+    "아이디 또는 복구 코드가 올바르지 않습니다."
+  ],
+  [
+    "Настройки входа изменились. Откройте страницу заново.",
+    "Sign-in settings changed. Open this page again.",
+    "Les paramètres de connexion ont changé. Rouvrez cette page.",
+    "로그인 설정이 변경되었습니다. 페이지를 다시 열어 주세요."
+  ],
+  [
+    "Этот логин уже занят.",
+    "This username is already taken.",
+    "Cet identifiant est déjà utilisé.",
+    "이미 사용 중인 로그인 아이디입니다."
+  ],
+  [
+    "Войдите в Zoigram.",
+    "Sign in to Zoigram.",
+    "Connectez-vous à Zoigram.",
+    "Zoigram에 로그인해 주세요."
+  ],
+  [
+    "Войдите в Zoigram заново.",
+    "Sign in to Zoigram again.",
+    "Reconnectez-vous à Zoigram.",
+    "Zoigram에 다시 로그인해 주세요."
+  ],
+  [
+    "Для входа откройте Zoigram в телефоне персонажа и нажмите «Войти».",
+    "Open Zoigram on your character’s phone and select Sign in.",
+    "Ouvrez Zoigram sur le téléphone de votre personnage et appuyez sur Se connecter.",
+    "캐릭터의 휴대전화에서 Zoigram을 열고 로그인을 선택하세요."
+  ],
+  [
+    "Вход и восстановление",
+    "Sign-in and recovery",
+    "Connexion et récupération",
+    "로그인 및 복구"
+  ],
+  [
+    "Настройте логин и пароль до выхода из аккаунта.",
+    "Set up a username and password before signing out.",
+    "Configurez un identifiant et un mot de passe avant de vous déconnecter.",
+    "로그아웃하기 전에 아이디와 비밀번호를 설정해 주세요."
+  ],
+  [
+    "Войдите в Zoigram в браузере и вернитесь в игру.",
+    "Sign in to Zoigram in your browser, then return to the game.",
+    "Connectez-vous à Zoigram dans votre navigateur, puis revenez au jeu.",
+    "브라우저에서 Zoigram에 로그인한 뒤 게임으로 돌아가세요."
+  ],
+  [
+    "Войти / создать аккаунт",
+    "Sign in / create account",
+    "Se connecter / créer un compte",
+    "로그인 / 계정 만들기"
+  ],
+  [
+    "Логин и пароль Zoigram. Без почты и Steam.",
+    "Your Zoigram username and password. No email or Steam.",
+    "Identifiant et mot de passe Zoigram. Sans e-mail ni Steam.",
+    "Zoigram 아이디와 비밀번호로 로그인하세요. 이메일이나 Steam은 필요 없습니다."
+  ],
+  [
+    "Вход настроен. Сохраните резервный код в браузере.",
+    "Sign-in is set up. Save the recovery code shown in your browser.",
+    "Connexion configurée. Conservez le code de récupération affiché dans le navigateur.",
+    "로그인이 설정되었습니다. 브라우저에 표시된 복구 코드를 보관해 주세요."
+  ]
 ]

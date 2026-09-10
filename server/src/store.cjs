@@ -33,7 +33,10 @@ function openStore(filename){
  CREATE INDEX IF NOT EXISTS direct_messages_sender ON direct_messages(sender_id,id DESC);
  CREATE TABLE IF NOT EXISTS avatars(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,image BLOB NOT NULL,bytes INTEGER NOT NULL,revision TEXT NOT NULL,updated_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS avatar_uploads(token_hash TEXT PRIMARY KEY,session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
- PRAGMA user_version=4;`);
+ CREATE TABLE IF NOT EXISTS account_credentials(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,login TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,recovery_hash TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS account_links(token_hash TEXT PRIMARY KEY,session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS account_flows(token_hash TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('device','settings')),device_hash TEXT REFERENCES devices(secret_hash) ON DELETE CASCADE,session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
+ PRAGMA user_version=5;`);
  return db;
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}

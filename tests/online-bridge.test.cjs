@@ -12,9 +12,10 @@ async function fixture({session,route=()=>({status:200,body:{ok:true}}),previous
 const session={server:'http://127.0.0.1:43821',token:'test-token',expiresAt:Date.now()+600000};
 test('native activity, conversations and avatar actions reach authenticated API through the real allowlist',async()=>{
  const f=await fixture({session}),id='11111111-1111-4111-8111-111111111111';
- for(const path of ['/api/activity','/api/notifications','/api/notifications/read','/api/notifications?before=9','/api/conversations','/api/conversations/'+id+'/messages','/api/conversations/'+id+'/read','/api/me/avatar-upload','/api/me/avatar']){
+ for(const path of ['/api/activity','/api/notifications','/api/notifications/read','/api/notifications?before=9','/api/conversations','/api/conversations/'+id+'/messages','/api/conversations/'+id+'/read','/api/me/avatar-upload','/api/me/avatar','/api/me/account-access']){
   const before=f.calls.length;assert.equal((await f.run({path})).status,200,path);assert.equal(f.calls.length,before+1,path);assert.equal(f.calls.at(-1).headers.Authorization,'Bearer test-token');
  }
+ assert.equal((await f.run({method:'POST',path:'/api/me/account-access',body:{}})).status,200);
  for(const path of ['/api/admin','/api/me/avatar/../../session','/api/conversations/../../me','/api/notifications#x'])assert.equal((await f.run({path})).status,0);
 });
 test('bridge unwraps game SDK results and binds saved authentication to its server',async()=>{
@@ -39,8 +40,8 @@ test('manual timeout releases a hung Cohtml local-file request so the user can r
 
 test('language follows each job and local errors are translated without altering content',async()=>{
  const f=await fixture({session});
- for(const [language,message]of [['en','Sign in with Steam.'],['fr','Connectez-vous avec Steam.'],['ko','Steam으로 로그인해 주세요.'],['ru','Войдите через Steam.']]){
+ for(const [language,message]of [['en','Sign in to Zoigram.'],['fr','Connectez-vous à Zoigram.'],['ko','Zoigram에 로그인해 주세요.'],['ru','Войдите в Zoigram.']]){
   const ok=await f.run({language});assert.equal(ok.status,200);assert.equal(f.calls.at(-1).headers['Accept-Language'],language);
-  const denied=await f.run({server:'https://other.example',language});assert.equal(denied.status,401);assert.equal(denied.body.error,message);assert.equal(denied.body.messageKey,'Войдите через Steam.');
+  const denied=await f.run({server:'https://other.example',language});assert.equal(denied.status,401);assert.equal(denied.body.error,message);assert.equal(denied.body.messageKey,'Войдите в Zoigram.');
  }
 });

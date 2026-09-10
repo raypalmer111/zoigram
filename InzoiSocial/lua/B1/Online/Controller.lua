@@ -16,7 +16,7 @@ function M:request(method,path,body,success,upload,silent,quiet)
  self.transport:send(self.server,method,path,body,function(status,result)
   self.busy=false
   if status>=200 and status<300 then success(result)
-  elseif status==401 then self.me=nil;self.pendingAvatar=nil;self.mode='login';self.error=result.messageKey or result.error
+  elseif status==401 then self.me=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.mode='login';self.error=result.messageKey or result.error
   elseif not quiet then self.error=result.messageKey or result.error or 'Нет связи с сервером. Попробуйте ещё раз.'end
   if not silent or self.error then self:draw()end
  end,upload)
@@ -28,9 +28,9 @@ end
 function M:connect(value)
  local server=Transport.server(value)
  if not server then self.error='Укажите HTTPS-адрес сервера.';self:draw();return end
- if self.server~=server then self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.server=server;self.mode='setup'
+ if self.server~=server then self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.server=server;self.mode='setup'
  self:request('GET','/api/info',nil,function(info)
-  if info.authentication~='steam'or info.origin~=self.server then self.error='По этому адресу нет совместимого сервера Zoigram.';return end
+  if info.authentication~='password'or info.origin~=self.server then self.error='По этому адресу нет совместимого сервера Zoigram.';return end
   self.info=info;self:saveConfig();self.mode='login';self.pendingLogin=nil
   self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.activityElapsed=20;self:feed('all')end)
  end)
@@ -162,6 +162,13 @@ function M:uploadAvatar()
   pcall(function()UE.UKismetSystemLibrary.LaunchURL(r.uploadUrl)end)
  end)
 end
+function M:accountAccess()
+ if not self.me then return end
+ self:request('POST','/api/me/account-access',{},function(r)
+  if type(r.url)~='string'or r.url:sub(1,#self.server+14)~=self.server..'/account?lang='then self.error='Сервер вернул неверный адрес входа.';return end
+  self.pendingAccount=r;self.accountBefore=self.me.accountRevision or 0;pcall(function()UE.UKismetSystemLibrary.LaunchURL(r.url)end)
+ end)
+end
 function M:snapshot()
  return {mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
 end
@@ -221,11 +228,12 @@ function M:act(action,value)
   self:request('POST','/api/posts/'..self.selectedPost.id..'/comments',{requestId=self.commentKey or Transport.nonce(),text=text},function()self.app.view:clearOnlineInput('comment');self.commentText=nil;self:discussion(self.selectedPost)end)
  elseif action=='follow'then local p=self.selectedProfile;self:request(p.isFollowing and'DELETE'or'PUT','/api/profiles/'..p.id..'/follow',{},function(r)self.selectedProfile=r.profile end)
  elseif action=='edit'then self:push();self.mode='edit';self:draw()
+ elseif action=='accountAccess'then self:accountAccess()
  elseif action=='uploadAvatar'then self:uploadAvatar()
  elseif action=='removeAvatar'then self:request('DELETE','/api/me/avatar',nil,function()self.pendingAvatar=nil;self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.notice='Аватар удалён.'end)end)
  elseif action=='saveProfile'then self:request('PATCH','/api/me',{displayName=self:input('name'),bio=self:input('bio')},function(r)self.me=r.profile;table.remove(self.history);self:profile(r.profile.id)end)
  elseif action=='settings'then if self.mode~='setup'then self:push();self.mode='setup';self:draw()end
- elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self.me=nil;self.pendingLogin=nil;self.pendingAvatar=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
+ elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self.me=nil;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
  elseif action=='deletePost'then
   if not self.me or not value or value.author.id~=self.me.id then self.error='Можно удалить только свою публикацию.';self:draw();return end
   self:push();self.deleteTarget=value;self.mode='deletePost';self:draw()
@@ -260,6 +268,9 @@ end
 function M:tick(dt)
  self.languageElapsed=(self.languageElapsed or 0)+(dt or 0);if self.languageElapsed>=2 then self.languageElapsed=0;if L.refresh()then self:draw()end end
  self.transport:tick(dt);self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
+ if self.pendingAccount and self.me and self.elapsed>=3 and not self.transport.pending then
+  self.elapsed=0;if os.time()*1000>self.pendingAccount.expiresAt then self.pendingAccount=nil else self:request('GET','/api/me',nil,function(r)self.me=r.profile;if (r.profile.accountRevision or 0)~=self.accountBefore then self.pendingAccount=nil;self.notice='Вход настроен. Сохраните резервный код в браузере.';self:draw()end end,nil,true,true)end
+ end
  if self.pendingAvatar and self.me then
   self.avatarElapsed=(self.avatarElapsed or 0)+(dt or 0)
   if os.time()*1000>self.pendingAvatar.expiresAt then self.pendingAvatar=nil;self:draw()
@@ -281,5 +292,5 @@ function M:tick(dt)
  end
  if self.me and not self.pendingLogin and self.activityElapsed>=20 and not self.transport.pending then self.activityElapsed=0;self:activity()end
 end
-function M:dispose()self.pendingAvatar=nil;self.transport:dispose()end
+function M:dispose()self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
 return M

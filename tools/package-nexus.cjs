@@ -3,6 +3,7 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process');
 const {buildNative}=require('./bundle-native.cjs');
 const root=path.resolve(__dirname,'..'),defaultModId='InzoiSocial_YV6DPJ';
+const publication='publication/nexus-'+JSON.parse(fs.readFileSync(path.join(root,'package.json'))).version;
 const uiFiles=['app.js','index.html','locales.js','uimod_manifest.json','uploads/.keep'];
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function walk(directory){
@@ -25,7 +26,7 @@ function buildManual(destination,modId=defaultModId){
  manifest.ProjectName=modId;manifest.bEnable=true;manifest.NonAssets=records.map(item=>'/'+item.path);
  write(destination,'mod_manifest.json',JSON.stringify(manifest,null,2)+'\n');
  write(destination,modId+'.uplugin',fs.readFileSync(path.join(root,'InzoiSocial/InzoiSocial.uplugin')));
- write(destination,'README.txt',fs.readFileSync(path.join(root,'publication/nexus-0.13.1/INSTALL.txt')));
+ write(destination,'README.txt',fs.readFileSync(path.join(root,publication+'/INSTALL.txt')));
  return {version,modId,files:walk(destination).map(file=>({path:path.relative(destination,file).replaceAll('\\','/'),sha256:digest(fs.readFileSync(file))})),runtimeFiles:records};
 }
 function zipDirectory(directory,zip){
@@ -42,9 +43,9 @@ function sourcePackage(destination){
  empty(destination);
  const fixed=['package.json','InzoiSocial/mod_manifest.json','InzoiSocial/InzoiSocial.uplugin','InzoiSocial/obsolete-files.json','InzoiSocial/assets/instagram-icon.png',
   'tools/bundle-native.cjs','tools/package-nexus.cjs','tools/build-locales.cjs','tools/build-ui-glyphs.cjs','tools/Install-Native.ps1','locales/messages.json',
-  'publication/nexus-0.13.1/INSTALL.txt','publication/nexus-0.13.1/REVIEW.md',
+  publication+'/INSTALL.txt',publication+'/REVIEW.md',
   'tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs',
-  'server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
+  'docs/ACCOUNTS.md','docs/ADMIN.md','server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
   'server/deploy/compose.yaml','server/deploy/Caddyfile','server/deploy/.env.example','server/deploy/preflight.cjs'];
  const dirs=['InzoiSocial/lua','server/src','server/admin','server/avatar','server/tools','server/test'];
  const list=[...fixed,...uiFiles.map(file=>'InzoiSocial/ui/OnlineBridge/'+file),...dirs.flatMap(dir=>walk(path.join(root,dir)).map(file=>path.relative(root,file).replaceAll('\\','/')))];
@@ -52,7 +53,8 @@ function sourcePackage(destination){
   if(/(?:^|\/)(?:backups|artifacts|private|node_modules|\.git)(?:\/|$)|^server\/data\/|^InzoiSocial\/(?:data|online)\/|(?:^|\/)(?:\.env|session\.cfg|config\.cfg|media\.key)$|\.(?:sqlite|zip|7z|rar|exe|dll)$/i.test(relative))throw Error('Private or unexpected source: '+relative);
   write(destination,relative,fs.readFileSync(path.join(root,relative)));
  }
- write(destination,'README.md',fs.readFileSync(path.join(root,'publication/nexus-0.13.1/REVIEW.md')));
+ const pkg=JSON.parse(fs.readFileSync(path.join(destination,'package.json')));pkg.scripts={test:'node --test tests/*.test.cjs','build:locales':'node tools/build-locales.cjs','server:test':'node --test server/test/*.test.cjs','server:start':'node server/src/main.cjs','package:manual':'node tools/package-nexus.cjs'};write(destination,'package.json',JSON.stringify(pkg,null,2)+'\n');
+ write(destination,'README.md',fs.readFileSync(path.join(root,publication+'/REVIEW.md')));
  return walk(destination).map(file=>({path:path.relative(destination,file).replaceAll('\\','/'),sha256:digest(fs.readFileSync(file))}));
 }
 function main(){

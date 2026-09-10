@@ -1,41 +1,30 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=require('node:fs'),vm=require('node:vm');
-const {createApp}=require('../src/app.cjs'),{identity,session,random,hash}=require('../src/store.cjs'),{ENDPOINT}=require('../src/steam-verifier.cjs');
+const {createApp}=require('../src/app.cjs'),{identity,session,random,hash}=require('../src/store.cjs');
 const OWNER='76561198000000001',OTHER='76561198000000002',origin='https://zoigram.example';
 async function fixture(t,options={}){
- const app=createApp({database:':memory:',origin,secret:Buffer.alloc(32,7),ownerSteamId:OWNER,steamFetch:async(url,opts)=>{assert.equal(url,ENDPOINT);assert.equal(opts.redirect,'error');return new Response('is_valid:true\n')},...options});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());
+ const app=createApp({database:':memory:',origin,secret:Buffer.alloc(32,7),ownerSteamId:OWNER,...options});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());
  const owner=identity(app.db,'steam',OWNER),other=identity(app.db,'steam',OTHER),token=random(),adminId=crypto.randomUUID();app.db.prepare('INSERT INTO admin_sessions VALUES(?,?,?,?)').run(adminId,hash(token),owner.id,Date.now()+3600000);const cookie='__Host-zoigram_admin='+token;
  const request=(p,options={})=>fetch('http://127.0.0.1:'+app.server.address().port+p,{redirect:'manual',...options});const bootstrap=await(await request('/admin/api/session',{headers:{Cookie:cookie}})).json();
  async function call(p,{body,headers={},method=body?'POST':'GET'}={}){const r=await request(p,{method,headers:{Cookie:cookie,Origin:origin,'Content-Type':'application/json','X-CSRF-Token':bootstrap.csrfToken||'',...headers},body:body?JSON.stringify(body):undefined});const data=(r.headers.get('content-type')||'').includes('application/json')?await r.json():await r.text();return {status:r.status,data,headers:r.headers}}
  function post(p=other){return Number(app.db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(p.id,random(),'digest','<script>alert(1)</script> 🌆',Date.now(),64,64,Buffer.from('photo'),Buffer.from('thumbnail'),14).lastInsertRowid)}
  return {app,owner,other,cookie,request,call,post,adminId};
 }
-async function steamStart(f,subject=OWNER){const start=await f.request('/admin/auth/start',{method:'POST',headers:{Origin:origin}});assert.equal(start.status,200);const b=await start.json(),url=new URL(b.url),returnTo=url.searchParams.get('openid.return_to'),callback=new URL(returnTo);const cookie=start.headers.getSetCookie()[0].split(';')[0];for(const [k,v]of Object.entries({ns:'http://specs.openid.net/auth/2.0',mode:'id_res',op_endpoint:ENDPOINT,claimed_id:'https://steamcommunity.com/openid/id/'+subject,identity:'https://steamcommunity.com/openid/id/'+subject,return_to:returnTo,response_nonce:new Date().toISOString().replace(/\.\d{3}Z$/,'Z')+crypto.randomUUID(),signed:'op_endpoint,claimed_id,identity,return_to,response_nonce',sig:'test'}))callback.searchParams.set('openid.'+k,v);return {path:callback.pathname+callback.search,cookie,callback,start}}
 test('private data never accepts anonymous, game Bearer tokens or other accounts',async t=>{
  const f=await fixture(t),id=f.post(),game=session(f.app.db,f.owner.id);for(const p of ['/admin/api/summary','/admin/api/profiles','/admin/api/posts','/admin/api/comments','/admin/api/reports','/admin/api/audit','/admin/api/media/'+id]){const r=await f.request(p,{headers:{Authorization:'Bearer '+game.token}});assert.equal(r.status,401,p);assert.equal(r.headers.get('access-control-allow-origin'),null);assert(!(await r.text()).includes(f.other.username))}
  const wrong=random();f.app.db.prepare('INSERT INTO admin_sessions VALUES(?,?,?,?)').run(random(),hash(wrong),f.other.id,Date.now()+3600000);assert.equal((await f.call('/admin/api/summary',{headers:{Cookie:'__Host-zoigram_admin='+wrong}})).status,401);
  f.app.db.prepare('UPDATE admin_sessions SET expires_at=1 WHERE id=?').run(f.adminId);assert.equal((await f.call('/admin/api/summary')).status,401);
 });
 test('owner access is explicit, checked on every request and disabled by default',async t=>{
- const f=await fixture(t,{ownerSteamId:''});assert.equal((await f.call('/admin/api/summary')).status,401);assert.equal((await f.request('/admin/auth/start',{method:'POST',headers:{Origin:origin}})).status,503);
+ const f=await fixture(t,{ownerSteamId:''});assert.equal((await f.call('/admin/api/summary')).status,401);assert.equal((await f.request('/admin/auth/password',{method:'POST',headers:{Origin:origin}})).status,503);
  const g=await fixture(t);g.app.db.prepare('UPDATE profiles SET banned=1 WHERE id=?').run(g.owner.id);assert.equal((await g.call('/admin/api/summary')).status,401);
  const h=await fixture(t);h.app.db.prepare('UPDATE profiles SET subject=? WHERE id=?').run('76561198000000009',h.owner.id);assert.equal((await h.call('/admin/api/summary')).status,401);
-});
-test('Steam login creates an isolated Secure HttpOnly owner session; state cannot replay',async t=>{
- const f=await fixture(t),start=await steamStart(f);const missing=await f.request(start.path);assert.equal(missing.status,400);
- const finished=await f.request(start.path,{headers:{Cookie:start.cookie}});assert.equal(finished.status,303);assert.equal(finished.headers.get('location'),'/admin/');const cookies=finished.headers.getSetCookie(),admin=cookies.find(c=>c.startsWith('__Host-zoigram_admin='));for(const flag of ['Secure','HttpOnly','SameSite=Lax','Path=/','Max-Age=14400'])assert(admin.includes(flag));assert(!admin.includes('Domain='));
- const loggedIn=await(await f.request('/admin/api/session',{headers:{Cookie:admin.split(';')[0]}})).json();assert(loggedIn.authenticated);assert.equal(loggedIn.owner.id,f.owner.id);assert.equal(loggedIn.csrfToken.length,43);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM sessions').get().n,0);
- assert.equal((await f.request(start.path,{headers:{Cookie:start.cookie}})).status,400);
- const rejected=await steamStart(f,'76561198000000033');assert.equal((await f.request(rejected.path,{headers:{Cookie:rejected.cookie}})).status,403);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM profiles').get().n,2);assert.equal((await f.request(rejected.path,{headers:{Cookie:rejected.cookie}})).status,400);
-});
-test('forged Steam endpoint, signature, callback, nonce and duplicate fields are refused',async t=>{
- for(const mutation of ['endpoint','return','signature','duplicate','old','cookie']){const f=await fixture(t,{steamFetch:async()=>new Response(mutation==='signature'?'is_valid:false\n':'is_valid:true\n')}),s=await steamStart(f);if(mutation==='endpoint')s.callback.searchParams.set('openid.op_endpoint','https://evil.example');if(mutation==='return')s.callback.searchParams.set('openid.return_to',origin+'/auth/steam/callback');if(mutation==='duplicate')s.callback.searchParams.append('state',s.callback.searchParams.get('state'));if(mutation==='old')s.callback.searchParams.set('openid.response_nonce','2020-01-01T00:00:00Zold');const before=f.app.db.prepare('SELECT COUNT(*) n FROM admin_sessions').get().n;const r=await f.request(s.callback.pathname+s.callback.search,{headers:{Cookie:mutation==='cookie'?'__Host-zoigram_admin_login='+random():s.cookie}});assert.equal(r.status,400,mutation);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM admin_sessions').get().n,before)}
 });
 test('CSRF and cross-origin checks prevent mutations and logout does not end the game session',async t=>{
  const f=await fixture(t),game=session(f.app.db,f.owner.id),body={action:'ban',targetId:f.other.id,reason:'Spam'};
  for(const headers of [{'X-CSRF-Token':''},{'X-CSRF-Token':random()},{Origin:'https://evil.example'},{Origin:''},{'Sec-Fetch-Site':'cross-site'}])assert.equal((await f.call('/admin/api/actions',{body,headers})).status,403);
  assert.equal(f.app.db.prepare('SELECT banned FROM profiles WHERE id=?').get(f.other.id).banned,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM moderation').get().n,0);
- assert.equal((await f.request('/admin/auth/start',{method:'POST',headers:{Origin:'https://evil.example'}})).status,403);
+ assert.equal((await f.request('/admin/auth/password',{method:'POST',headers:{Origin:'https://evil.example'}})).status,403);
  const out=await f.call('/admin/api/logout',{method:'POST'});assert.equal(out.status,200);assert.equal((await f.call('/admin/api/summary')).status,401);assert(f.app.db.prepare('SELECT 1 FROM sessions WHERE token_hash=?').get(hash(game.token)));
 });
 test('rename preserves identity and sessions, records the owner, and rejects stale changes',async t=>{

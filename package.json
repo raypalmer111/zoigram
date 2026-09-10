@@ -1,13 +1,14 @@
 {
   "name": "zoigram",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "private": true,
   "description": "Zoigram: photo sharing for real players inside the inZOI phone",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "build:manual": "node tools/package-nexus.cjs --directory review-output",
-    "package:manual": "node tools/package-nexus.cjs",
-    "server:test": "node --test server/test/*.test.cjs"
+    "build:locales": "node tools/build-locales.cjs",
+    "server:test": "node --test server/test/*.test.cjs",
+    "server:start": "node server/src/main.cjs",
+    "package:manual": "node tools/package-nexus.cjs"
   },
   "engines": {
     "node": ">=20"

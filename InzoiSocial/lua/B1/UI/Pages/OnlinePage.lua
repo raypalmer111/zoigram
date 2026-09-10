@@ -193,6 +193,9 @@ function M.create(kit,action)
    if model.commentCursor then button(content,L.t('Ещё комментарии'),'MoreComments','moreComments');gap()end
    input('comment',L.t('Ваш комментарий'),'',74);button(content,L.t('Отправить'),'Reply','reply',nil,P.accent,true)
   elseif model.mode=='edit'then
+   button(content,L.t('Вход и восстановление'),'AccountAccess','accountAccess',nil,P.blue);gap(8)
+   if not model.me.accountConfigured then label(L.t('Настройте логин и пароль до выхода из аккаунта.'),11,'AccountSetupHint',P.accent);gap(8)end
+   if model.pendingAccount then input('accountUrl',L.t('Ссылка для браузера · Ctrl+A, Ctrl+C'),model.pendingAccount.url,62)end
    Kit.center(content,avatar(model.me,76,'EditAvatar'));gap(10)
    if model.info and model.info.features and model.info.features.avatars then
     button(content,L.t('Загрузить фото'),'UploadAvatar','uploadAvatar',nil,P.blue);gap(6)
@@ -213,9 +216,9 @@ function M.create(kit,action)
    if model.me then gap(24);button(content,L.t('Выйти из аккаунта'),'Logout','logout',nil,P.accent)end
   elseif model.mode=='login'then
    empty(L.t('Жизнь. В вашем кадре.'),L.t('Фотографии, люди и моменты из inZOI.'))
-   if model.pendingLogin then label(L.t('Код: {code}',{code=model.pendingLogin.userCode}),20,'LoginCode',P.accent,true);gap();input('loginUrl',L.t('Ссылка для браузера · Ctrl+A, Ctrl+C'),model.pendingLogin.verificationUrl,76);label(L.t('Подтвердите вход в Steam и вернитесь в игру.'),11,'LoginHelp',P.muted);gap();button(content,L.t('Открыть страницу входа'),'OpenLogin','openLogin',nil,P.accent,true);gap(8);button(content,L.t('Начать заново'),'CancelLogin','cancelLogin')
-   else button(content,L.t('Войти через Steam'),'Login','login',nil,P.accent,true)end
-   gap();label(L.t('Один Steam-аккаунт — один профиль.'),10,'LoginPrivacy',P.muted)
+   if model.pendingLogin then label(L.t('Код: {code}',{code=model.pendingLogin.userCode}),20,'LoginCode',P.accent,true);gap();input('loginUrl',L.t('Ссылка для браузера · Ctrl+A, Ctrl+C'),model.pendingLogin.verificationUrl,76);label(L.t('Войдите в Zoigram в браузере и вернитесь в игру.'),11,'LoginHelp',P.muted);gap();button(content,L.t('Открыть страницу входа'),'OpenLogin','openLogin',nil,P.accent,true);gap(8);button(content,L.t('Начать заново'),'CancelLogin','cancelLogin')
+   else button(content,L.t('Войти / создать аккаунт'),'Login','login',nil,P.accent,true)end
+   gap();label(L.t('Логин и пароль Zoigram. Без почты и Steam.'),10,'LoginPrivacy',P.muted)
   elseif model.mode=='report'then
    gap(22);Kit.center(content,k:box('OnlineReportEmblemSize',54,54,k:roundedPanel('OnlineReportEmblem',k:glyph('flag','OnlineReportFlag',26,P.accent),14,P.blush,18)))
    gap(16);content:AddChild(k:text(L.t('Отправить жалобу'),20,'OnlineReportTitle',P.ink,true));gap(10)
