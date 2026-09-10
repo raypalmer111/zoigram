@@ -1,4 +1,4 @@
-# Zoigram 0.13.1 - source and review notes
+# Zoigram 0.43.1 - source and review notes
 
 Nexus page: https://www.nexusmods.com/inzoi/mods/1474
 
