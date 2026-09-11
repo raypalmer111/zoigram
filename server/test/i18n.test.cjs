@@ -19,17 +19,17 @@ test('concurrent API requests use their own language and never translate player 
  }));
  const unsupported=await request('/api/me',{headers:{'Accept-Language':'de-DE'}});assert.equal((await unsupported.json()).error,'Sign in to Zoigram.');
 });
-test('password forms retain all four languages, mask passwords and never redirect to Steam',async t=>{
+test('password forms and errors use English even when game links, cookies and browser headers request another language',async t=>{
  const {request}=await fixture(t);
  for(const language of I18n.languages){
   const d=await(await request('/api/auth/device',{method:'POST',headers:{'Accept-Language':language}})).json();
-  assert.equal(new URL(d.verificationUrl).searchParams.get('lang'),language);
-  const r=await request('/connect?code='+d.userCode+'&mode=register&lang='+language),html=await r.text();
-  assert.equal(r.status,200);assert(html.includes('<html lang="'+language+'">'));assert(html.includes(I18n.t(language,'Создать аккаунт')));assert(html.includes('type="password"'));assert(!html.includes('steamcommunity.com'));
+  assert.equal(new URL(d.verificationUrl).searchParams.get('lang'),'en');
+  const r=await request('/connect?code='+d.userCode+'&mode=register&lang='+language,{headers:{'Accept-Language':language,Cookie:'zg_lang='+language}}),html=await r.text();
+  assert.equal(r.status,200);assert.equal(r.headers.get('content-language'),'en');assert(html.includes('<html lang="en">'));assert(html.includes('Create account'));assert(html.includes('action="/account/register?lang=en"'));assert(html.includes('type="password"'));assert(!html.includes('steamcommunity.com'));
   const cookie=r.headers.getSetCookie()[0].split(';')[0],csrf=html.match(/name="csrf" value="([^"]+)"/)[1];
   const invalid=await request('/account/register?lang='+language,{method:'POST',headers:{Origin:'https://zoigram.example',Cookie:cookie,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,login:'new_player',password:'short'})});
-  assert.equal(invalid.status,400);assert((await invalid.text()).includes(I18n.t(language,'Пароль: от 15 до 128 символов. Можно использовать фразу.')));
-  const expired=await request('/connect?code=INVALID&lang='+language);assert.equal(expired.status,410);
+  assert.equal(invalid.status,400);assert.equal(invalid.headers.get('content-language'),'en');assert((await invalid.text()).includes('Use 15–128 characters for your password. A passphrase works too.'));
+  const expired=await request('/connect?code=INVALID&lang='+language);assert.equal(expired.status,410);assert.equal(expired.headers.get('content-language'),'en');assert((await expired.text()).includes('<html lang="en">'));
   const home=await(await request('/?lang='+language)).text();assert(home.includes('<html lang="'+language+'">'));
  }
 });

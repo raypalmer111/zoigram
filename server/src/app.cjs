@@ -53,7 +53,7 @@ function createApp(options={}){
    if(method==='POST'&&p==='/api/auth/device'){
     limit('device:'+ip,6,600000);const deviceToken=random(),userCode=crypto.randomBytes(5).toString('hex').toUpperCase(),expiresAt=now()+600000;
     db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at) VALUES(?,?,?)').run(hash(deviceToken),userCode,expiresAt);
-    return send(res,201,{deviceToken,userCode,expiresAt,verificationUrl:origin+'/connect?code='+userCode+'&lang='+language});
+    return send(res,201,{deviceToken,userCode,expiresAt,verificationUrl:origin+'/connect?code='+userCode+'&lang='+I18n.accountLanguage});
    }
    if(method==='POST'&&p==='/api/auth/poll'){
     const body=await json(req),deviceToken=body.deviceToken;if(typeof deviceToken!=='string'||deviceToken.length!==43)fail(400,'Код входа неверен.');limit('poll:'+hash(deviceToken),40);

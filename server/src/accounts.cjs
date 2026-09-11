@@ -71,7 +71,7 @@ function createAccounts({db,origin,secret,fail,limit,json,send,authorize}){
   const p=u.pathname,m=req.method;
   if(m==='POST'&&p==='/api/me/account-access'){
    const s=authorize(req);limit('account-link:'+s.id,6,600000);const token=random();db.prepare('INSERT INTO account_links VALUES(?,?,?)').run(hash(token),s.id,Date.now()+TTL);
-   send(res,201,{url:origin+'/account?lang='+language+'#'+token,expiresAt:Date.now()+TTL});return true;
+   send(res,201,{url:origin+'/account?lang='+I18n.accountLanguage+'#'+token,expiresAt:Date.now()+TTL});return true;
   }
   if(p!=='/connect'&&p!=='/account'&&!p.startsWith('/account/'))return false;
   clean();res.setHeader('Referrer-Policy','same-origin');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");res.setHeader('X-Frame-Options','DENY');res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag','noindex');

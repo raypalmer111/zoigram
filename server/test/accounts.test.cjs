@@ -14,9 +14,9 @@ async function fixture(t,options={}){
  const submit=(flow,mode,b={},headers={})=>request('/account/'+mode+'?lang=ru',{method:'POST',headers:{Origin:origin,Cookie:flow.cookie,'Content-Type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams({csrf:flow.csrf,...b})});
  async function register(login='moonwalker'){const flow=await browser('register'),r=await submit(flow,'register',{login,password:PASS}),html=await r.text();assert.equal(r.status,200,html);const recovery=html.match(/class="recovery">([a-f0-9-]+)</)[1];const access=await(await json('/api/auth/poll',{deviceToken:flow.d.deviceToken})).json();assert.equal(access.status,'complete');return {flow,access,recovery,login}}
  async function settings(token){
-  const r=await json('/api/me/account-access',{}, {Authorization:'Bearer '+token});assert.equal(r.status,201);const ticket=await r.json();assert(!new URL(ticket.url).searchParams.has('token'));
+  const r=await json('/api/me/account-access',{}, {Authorization:'Bearer '+token});assert.equal(r.status,201);const ticket=await r.json();assert(!new URL(ticket.url).searchParams.has('token'));assert.equal(new URL(ticket.url).searchParams.get('lang'),'en');
   const exchange=await request('/account/ticket',{method:'POST',headers:{Origin:origin,Authorization:'Account '+new URL(ticket.url).hash.slice(1)}});assert.equal(exchange.status,200);
-  const cookie=exchange.headers.getSetCookie()[0].split(';')[0],page=await request('/account/settings',{headers:{Cookie:cookie}}),html=await page.text();assert.equal(page.status,200);
+  const cookie=exchange.headers.getSetCookie()[0].split(';')[0],page=await request('/account/settings?lang=ru',{headers:{Cookie:cookie+'; zg_lang=ru'}}),html=await page.text();assert.equal(page.status,200);assert.equal(page.headers.get('content-language'),'en');assert(html.includes('<html lang="en">'));assert(html.includes('?lang=en'));
   return {cookie,csrf:html.match(/name="csrf" value="([^"]+)"/)[1],html,ticket};
  }
  return {app,request,json,browser,submit,register,settings};
@@ -46,7 +46,7 @@ test('expired or consumed browser flows cannot create another profile',async t=>
 test('signed-in legacy profile gains credentials while keeping posts, public ID and current session',async t=>{
  const f=await fixture(t),old=identity(f.app.db,'steam','76561198000000001'),other=identity(f.app.db,'test','other'),access=session(f.app.db,old.id);
  f.app.db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(old.id,random(),'test','Old post',Date.now(),64,64,Buffer.from('photo'),Buffer.from('thumb'),10);
- const b=await f.settings(access.token);assert(b.html.includes('Настроить вход'));assert.equal((await f.submit(b,'bind',{login:'legacy_player',password:PASS,profileId:other.id})).status,200);
+ const b=await f.settings(access.token);assert(b.html.includes('Set up sign-in'));assert.equal((await f.submit(b,'bind',{login:'legacy_player',password:PASS,profileId:other.id})).status,200);
  const me=await(await f.request('/api/me',{headers:{Authorization:'Bearer '+access.token}})).json();assert.equal(me.profile.id,old.id);assert.equal(me.profile.username,old.username);assert.equal(me.profile.postCount,1);assert(me.profile.accountConfigured);
  assert.equal(f.app.db.prepare('SELECT profile_id FROM account_credentials').get().profile_id,old.id);
  assert.equal((await f.request('/account/ticket',{method:'POST',headers:{Origin:origin,Authorization:'Account '+new URL(b.ticket.url).hash.slice(1)}})).status,410);

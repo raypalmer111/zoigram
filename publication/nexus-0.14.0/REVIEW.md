@@ -2,6 +2,8 @@
 
 This client requires Zoigram server 0.15.0 with password authentication. The server was deployed and the client was installed and checked in-game on 10 September 2026. Existing players must configure their private login from an active session before signing out. The source for the earlier quarantined 0.13.1 file remains in GitHub history at commit 7a042cf287ed6fc4eb80e99ebc09f7a1926bd704; these are different releases.
 
+On 11 September 2026, server hotfix 0.15.1 made sign-in, registration, password settings and recovery pages consistently English, including older links carrying another language. In-game and API translations remain available in all four languages. Client 0.14.0 is unchanged.
+
 ## Contents and network behavior
 
 The manual player ZIP contains readable Lua source, JavaScript/HTML, manifests and PNG artwork. It contains no EXE, DLL, PowerShell installer, nested archive, server database, real account, password or private key. The separate source package includes server sources, synthetic test fixtures and the old optional installer source for review; the installer is not included or required in the player download.
