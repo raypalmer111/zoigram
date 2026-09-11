@@ -36,7 +36,9 @@ function openStore(filename){
  CREATE TABLE IF NOT EXISTS account_credentials(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,login TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,recovery_hash TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS account_links(token_hash TEXT PRIMARY KEY,session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS account_flows(token_hash TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('device','settings')),device_hash TEXT REFERENCES devices(secret_hash) ON DELETE CASCADE,session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
- PRAGMA user_version=5;`);
+ CREATE TABLE IF NOT EXISTS profile_verifications(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,verified INTEGER NOT NULL CHECK(verified IN (0,1)),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS post_like_bonuses(post_id INTEGER PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,amount INTEGER NOT NULL CHECK(amount BETWEEN 0 AND 1000000),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);
+ PRAGMA user_version=6;`);
  return db;
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}

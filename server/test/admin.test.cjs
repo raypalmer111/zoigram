@@ -11,7 +11,7 @@ async function fixture(t,options={}){
  return {app,owner,other,cookie,request,call,post,adminId};
 }
 test('private data never accepts anonymous, game Bearer tokens or other accounts',async t=>{
- const f=await fixture(t),id=f.post(),game=session(f.app.db,f.owner.id);for(const p of ['/admin/api/summary','/admin/api/profiles','/admin/api/posts','/admin/api/comments','/admin/api/reports','/admin/api/audit','/admin/api/media/'+id]){const r=await f.request(p,{headers:{Authorization:'Bearer '+game.token}});assert.equal(r.status,401,p);assert.equal(r.headers.get('access-control-allow-origin'),null);assert(!(await r.text()).includes(f.other.username))}
+ const f=await fixture(t),id=f.post(),game=session(f.app.db,f.owner.id);for(const p of ['/admin/api/zoimeet','/admin/api/summary','/admin/api/profiles','/admin/api/posts','/admin/api/comments','/admin/api/reports','/admin/api/audit','/admin/api/media/'+id]){const r=await f.request(p,{headers:{Authorization:'Bearer '+game.token}});assert.equal(r.status,401,p);assert.equal(r.headers.get('access-control-allow-origin'),null);assert(!(await r.text()).includes(f.other.username))}
  const wrong=random();f.app.db.prepare('INSERT INTO admin_sessions VALUES(?,?,?,?)').run(random(),hash(wrong),f.other.id,Date.now()+3600000);assert.equal((await f.call('/admin/api/summary',{headers:{Cookie:'__Host-zoigram_admin='+wrong}})).status,401);
  f.app.db.prepare('UPDATE admin_sessions SET expires_at=1 WHERE id=?').run(f.adminId);assert.equal((await f.call('/admin/api/summary')).status,401);
 });
@@ -50,4 +50,17 @@ test('reports can close and reopen, and lists paginate without dropping equal ti
 });
 test('web assets have restrictive CSP and community strings are rendered as text',async t=>{
  const f=await fixture(t);const page=await f.request('/admin/');assert.equal(page.status,200);assert.equal(page.headers.get('x-frame-options'),'DENY');assert(page.headers.get('content-security-policy').includes("script-src 'self'"));assert.equal(page.headers.get('access-control-allow-origin'),null);const source=fs.readFileSync(require('node:path').join(__dirname,'../admin/app.js'),'utf8');new vm.Script(source);assert(!/innerHTML|outerHTML|insertAdjacentHTML|localStorage|document\.cookie|eval\(/.test(source));assert(source.includes('document.createTextNode'));assert(source.includes('node.textContent'));
+});
+
+
+test('ZoiMeet monitor uses owner session, rejects cross-origin access and never mutates community data',async t=>{
+ let calls=0;const snapshot={service:'ZoiMeet',serverTime:1000,summary:{online:2},devices:{items:[{code:'ABCDE23456'}]},requests:{items:[]}};
+ const f=await fixture(t,{zoimeetMonitor:async query=>{calls++;assert.equal(query.get('q'),'ABCDE');return snapshot;}});
+ assert.equal((await f.request('/admin/api/zoimeet?q=ABCDE')).status,401);assert.equal(calls,0);
+ const result=await f.call('/admin/api/zoimeet?q=ABCDE');assert.equal(result.status,200);assert.deepEqual(result.data,snapshot);assert.equal(result.headers.get('access-control-allow-origin'),null);
+ assert.equal((await f.call('/admin/api/zoimeet?q=ABCDE',{headers:{'Sec-Fetch-Site':'cross-site'}})).status,403);assert.equal(calls,1);
+ assert.equal((await f.call('/admin/api/zoimeet',{method:'POST',body:{action:'delete'}})).status,404);assert.equal(calls,1);assert.equal(f.app.db.prepare('SELECT count(*) n FROM moderation').get().n,0);
+});
+test('unavailable ZoiMeet does not break the rest of moderation',async t=>{
+ const f=await fixture(t,{zoimeetMonitor:async()=>{throw Object.assign(Error('ZoiMeet недоступен'),{status:503});}});assert.equal((await f.call('/admin/api/zoimeet')).status,503);assert.equal((await f.call('/admin/api/summary')).status,200);
 });

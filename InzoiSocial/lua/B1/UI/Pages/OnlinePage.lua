@@ -28,6 +28,19 @@ function M.create(kit,action)
    local text=k:text(title,12,'Online'..name..'Label',filled and P.white or(color or P.ink),true,false,true)
    local b=k:button('Online'..name,k:roundedPanel('Online'..name..'Fill',text,12,filled and(color or P.accent)or P.surface,10),function()action(a,value)end);b:SetIsEnabled(not model.busy);parent:AddChild(b);return b
   end
+  local function nameLine(p,size,name,tint,value)
+   local row=k:make(UE.UHorizontalBox,'Online'..name..'Row')
+   local text=k:text(value or p.displayName,size,'Online'..name,tint or P.ink,true,true,true)
+   local bounds=k:box('Online'..name..'TextBounds',nil,nil,text);bounds:SetMaxDesiredWidth(size>=16 and 200 or 150)
+   row:AddChildToHorizontalBox(bounds):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+   if p.verified==true then
+    row:AddChild(k:box('Online'..name..'BadgeGap',4,1))
+    local badge=k:glyph('verified','Online'..name..'Verified',size>=16 and 16 or 13,P.blue)
+    pcall(function()badge:SetToolTipText(L.t('Подтверждённый аккаунт'))end)
+    row:AddChildToHorizontalBox(badge):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+   end
+   return row
+  end
   local function avatar(p,size,name)
    local initial=((p.displayName or''):match('^[A-Za-z0-9]')or(p.username or'z'):sub(1,1)):upper()
    local fallback=k:roundedPanel('Online'..name,k:text(initial,math.floor(size*.39),'Online'..name..'Initial',P.accent,true),math.floor(size*.2),P.blush,size/2)
@@ -101,7 +114,7 @@ function M.create(kit,action)
     local column=k:make(UE.UVerticalBox,'OnlinePost'..i);content:AddChild(column)
     local head=k:make(UE.UHorizontalBox,'OnlinePostHeader'..i);column:AddChild(k:box('OnlinePostHeaderHeight'..i,nil,53,k:panel('OnlinePostHeaderPad'..i,head,9)))
     head:AddChildToHorizontalBox(avatar(post.author,34,'Avatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-    local names=k:make(UE.UVerticalBox,'OnlineAuthorNames'..i);names:AddChild(k:text(post.author.displayName,12,'OnlineAuthorName'..i,P.ink,true,true,true));names:AddChild(k:text('@'..post.author.username,10,'OnlineAuthorHandle'..i,P.muted,false,true))
+    local names=k:make(UE.UVerticalBox,'OnlineAuthorNames'..i);names:AddChild(nameLine(post.author,12,'AuthorName'..i));names:AddChild(k:text('@'..post.author.username,10,'OnlineAuthorHandle'..i,P.muted,false,true))
     local author=k:button('OnlineAuthor'..i,names,function()action('profile',post.author.id)end,7);author:SetIsEnabled(not model.busy);Kit.fill(head:AddChildToHorizontalBox(author))
     if model.me and post.author.id==model.me.id then local menu=k:button('OnlinePostMenu'..i,k:glyph('more','OnlinePostMenuGlyph'..i,18),function()action('postMenu',post)end,7);menu:SetIsEnabled(not model.busy);head:AddChild(menu)end
     if model.postMenu==post.id and model.me and post.author.id==model.me.id then button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)end
@@ -128,7 +141,7 @@ function M.create(kit,action)
    local p=model.selectedProfile;if p then
     gap(12);local summary=k:make(UE.UHorizontalBox,'OnlineProfileSummary');content:AddChild(summary);summary:AddChild(avatar(p,64,'ProfileAvatar'))
     for _,stat in ipairs({{p.postCount,L.t('постов'),'Posts'},{p.followers,L.t('подписчиков'),'Followers'},{p.following,L.t('подписок'),'Following'}})do local col=k:make(UE.UVerticalBox,'OnlineStat'..stat[3]);col:AddChild(k:text(tostring(stat[1]),18,'OnlineStatValue'..stat[3],P.ink,true));col:AddChild(k:text(stat[2],9,'OnlineStatLabel'..stat[3],P.muted,false,false,true));Kit.fill(summary:AddChildToHorizontalBox(col)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)end
-    gap();label(p.displayName,17,'ProfileName',P.ink,true);label('@'..p.username,11,'ProfileUsername',P.muted);if p.bio~=''then gap(6);label(p.bio,12,'ProfileBio')end;gap()
+    gap();content:AddChild(nameLine(p,17,'ProfileName'));label('@'..p.username,11,'ProfileUsername',P.muted);if p.bio~=''then gap(6);label(p.bio,12,'ProfileBio')end;gap()
     if p.isSelf then button(content,L.t('Редактировать профиль'),'EditProfile','edit')
     else button(content,p.isFollowing and L.t('Вы подписаны')or L.t('Подписаться'),'Follow','follow',nil,p.isFollowing and P.ink or P.accent,not p.isFollowing);gap(8);button(content,L.t('Написать сообщение'),'MessageProfile','message',p.id,P.blue,true);gap(8);button(content,L.t('Пожаловаться'),'ReportProfileDirect','report',{kind='profile',id=p.id},P.muted)end
     if model.profileMenu and not p.isSelf then gap(8);button(content,model.confirmBlock==p.id and L.t('Подтвердить блокировку')or L.t('Заблокировать'),'Block','block',nil,P.accent)end
@@ -139,7 +152,7 @@ function M.create(kit,action)
     if #(model.notifications or{})==0 then empty(L.t('Пока нет уведомлений'),L.t('Лайки и подписки появятся здесь.'))end
     for i,n in ipairs(model.notifications or{})do
      local row=k:make(UE.UHorizontalBox,'OnlineNotificationRow'..i);row:AddChildToHorizontalBox(avatar(n.actor,42,'NotificationAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(k:text('@'..n.actor.username..' · '..L.date(n.createdAt),9,'OnlineNotificationDate'..i,P.muted,false,true,true));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(nameLine(n.actor,9,'NotificationDate'..i,P.muted,'@'..n.actor.username..' · '..L.date(n.createdAt)));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      if not n.isRead then row:AddChildToHorizontalBox(k:text('●',12,'OnlineNotificationUnread'..i,P.accent,true)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)end
      local card=k:button('OnlineNotification'..i,k:panel('OnlineNotificationSurface'..i,row,9,n.isRead and P.white or P.blush),function()action('notification',n)end);card:SetIsEnabled(not model.busy);content:AddChild(card);k:line(content,'OnlineNotificationRule'..i,P.line)
     end
@@ -149,14 +162,14 @@ function M.create(kit,action)
     if #(model.conversations or{})==0 then empty(L.t('Пока нет сообщений'),L.t('Напишите игроку из его профиля.'))end
     for i,c in ipairs(model.conversations or{})do
      local row=k:make(UE.UHorizontalBox,'OnlineConversationRow'..i);row:AddChildToHorizontalBox(avatar(c.participant,46,'ConversationAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-     local copy=k:make(UE.UVerticalBox,'OnlineConversationCopy'..i);copy:AddChild(k:text(c.participant.displayName,13,'OnlineConversationName'..i,P.ink,true,true,true));local preview=c.lastMessage.outgoing and L.t('Вы: {text}',{text=c.lastMessage.text})or c.lastMessage.text;copy:AddChild(k:text(preview,10,'OnlineConversationPreview'..i,P.muted,false,true,true));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+     local copy=k:make(UE.UVerticalBox,'OnlineConversationCopy'..i);copy:AddChild(nameLine(c.participant,13,'ConversationName'..i));local preview=c.lastMessage.outgoing and L.t('Вы: {text}',{text=c.lastMessage.text})or c.lastMessage.text;copy:AddChild(k:text(preview,10,'OnlineConversationPreview'..i,P.muted,false,true,true));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      local meta=k:make(UE.UVerticalBox,'OnlineConversationMeta'..i);meta:AddChild(k:text(L.date(c.lastMessage.createdAt),9,'OnlineConversationDate'..i,P.muted));if c.unread and c.unread>0 then meta:AddChild(k:text(tostring(math.min(c.unread,99)),11,'OnlineConversationUnread'..i,P.blue,true))end;row:AddChildToHorizontalBox(meta):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      local card=k:button('OnlineConversation'..i,k:panel('OnlineConversationSurface'..i,row,9,c.unread and c.unread>0 and P.message or P.white),function()action('conversation',c.participant.id)end);card:SetIsEnabled(not model.busy);content:AddChild(card);k:line(content,'OnlineConversationRule'..i,P.line)
     end
     if model.conversationCursor then gap();button(content,L.t('Показать ещё'),'MoreConversations','moreConversations')end
    elseif model.mode=='messages'then
     if model.selectedConversation then
-     local participant=k:button('OnlineMessageParticipant',k:text('@'..model.selectedConversation.username,10,'OnlineMessageParticipantLabel',P.muted,true),function()action('profile',model.selectedConversation.id)end,7);participant:SetIsEnabled(not model.busy);content:AddChild(participant);k:line(content,'OnlineMessageParticipantRule',P.line)
+     local participant=k:button('OnlineMessageParticipant',nameLine(model.selectedConversation,10,'MessageParticipantLabel',P.muted,'@'..model.selectedConversation.username),function()action('profile',model.selectedConversation.id)end,7);participant:SetIsEnabled(not model.busy);content:AddChild(participant);k:line(content,'OnlineMessageParticipantRule',P.line)
     end
     if model.messageCursor then gap(6);button(content,L.t('Показать более ранние'),'MoreMessages','moreMessages');gap(8)end
     if #(model.messages or{})==0 then empty(L.t('Начните переписку'),L.t('Напишите первое сообщение.'))end
@@ -185,7 +198,7 @@ function M.create(kit,action)
    gap(8)
    if #model.comments==0 then label(L.t('Пока тихо. Начните разговор.'),13,'NoComments',P.muted);gap()end
    for i,c in ipairs(model.comments)do
-     local head=k:make(UE.UHorizontalBox,'OnlineCommentHead'..i);content:AddChild(head);head:AddChild(avatar(c.author,28,'CommentAvatar'..i));head:AddChild(k:button('OnlineCommentAuthor'..i,k:text(c.author.displayName,12,'OnlineCommentAuthorLabel'..i,P.ink,true,true),function()action('profile',c.author.id)end,6));gap(4);label(c.text,12,'CommentText'..i)
+     local head=k:make(UE.UHorizontalBox,'OnlineCommentHead'..i);content:AddChild(head);head:AddChild(avatar(c.author,28,'CommentAvatar'..i));head:AddChild(k:button('OnlineCommentAuthor'..i,nameLine(c.author,12,'CommentAuthorLabel'..i),function()action('profile',c.author.id)end,6));gap(4);label(c.text,12,'CommentText'..i)
      if model.me and c.author.id==model.me.id then content:AddChild(k:button('OnlineDeleteComment'..i,k:text(L.t('Удалить'),10,'OnlineDeleteCommentLabel'..i,P.muted),function()action('deleteComment',c)end,5))
      elseif model.me then content:AddChild(k:button('OnlineReportComment'..i,k:text('⚑ '..L.t('Пожаловаться'),10,'OnlineReportCommentLabel'..i,P.muted),function()action('report',{kind='comment',id=c.id})end,5))end
     gap();k:line(content,'OnlineCommentRule'..i,P.surface);gap()

@@ -1,10 +1,12 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {hash,random,transaction}=require('./store.cjs'),{act,fail,numeric,uuid}=require('./admin-actions.cjs');
+const Metadata=require('./social-metadata.cjs');
 const HOURS=4*3600000,PAGE=24;
-function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',accounts,storageBytes,send,json,limit,onError}){
+function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',accounts,storageBytes,send,json,limit,onError,zoimeetMonitor}){
  if(ownerSteamId&&!/^\d{17}$/.test(ownerSteamId))throw Error('OWNER_STEAM_ID must be one SteamID64');
  if(ownerProfileId&&!uuid(ownerProfileId))throw Error('OWNER_PROFILE_ID must be one profile UUID');
+ const monitor=zoimeetMonitor||require('./zoimeet-monitor.cjs').createMonitor();
  const ownerId=()=>ownerProfileId||(ownerSteamId?db.prepare("SELECT id FROM profiles WHERE provider='steam' AND subject=?").get(ownerSteamId)?.id:null);
  const secure=new URL(origin).protocol==='https:',sessionName=secure?'__Host-zoigram_admin':'zg_admin';
  const cookie=(name,value,seconds)=>name+'='+value+'; Path=/; HttpOnly; SameSite=Lax; Max-Age='+seconds+(secure?'; Secure':'');
@@ -17,9 +19,9 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
  }
  function protect(req,s){sameOrigin(req);const value=req.headers['x-csrf-token'];if(typeof value!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(value)||!crypto.timingSafeEqual(Buffer.from(value),Buffer.from(csrf(s))))fail(403,'Сеанс страницы устарел. Обновите панель и повторите действие.');}
  const summary=()=>({profiles:db.prepare('SELECT COUNT(*) n FROM profiles').get().n,posts:db.prepare('SELECT COUNT(*) n FROM posts').get().n,comments:db.prepare('SELECT COUNT(*) n FROM comments').get().n,reports:db.prepare('SELECT COUNT(*) n FROM reports WHERE resolved=0').get().n,banned:db.prepare('SELECT COUNT(*) n FROM profiles WHERE banned=1').get().n,bytes:db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n,storageBytes,newPosts:db.prepare('SELECT COUNT(*) n FROM posts WHERE created_at>?').get(Date.now()-86400000).n});
- const person=p=>p?{id:p.id,username:p.username,displayName:p.display_name,bio:p.bio||'',banned:!!p.banned,createdAt:p.created_at,isOwner:p.id===ownerId()}:null;
+ const person=p=>p?{...Metadata.verification(db,p.id),id:p.id,username:p.username,displayName:p.display_name,bio:p.bio||'',banned:!!p.banned,createdAt:p.created_at,isOwner:p.id===ownerId()}:null;
  function profile(id){const p=db.prepare('SELECT * FROM profiles WHERE id=?').get(id);return p?{...person(p),posts:db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=?').get(id).n,comments:db.prepare('SELECT COUNT(*) n FROM comments WHERE profile_id=?').get(id).n}:null}
- function post(p){return {...p,author:profile(p.profile_id),thumbnailUrl:'/admin/api/media/'+p.id+'?size=thumb',imageUrl:'/admin/api/media/'+p.id,likes:db.prepare('SELECT COUNT(*) n FROM likes WHERE post_id=?').get(p.id).n,comments:db.prepare('SELECT COUNT(*) n FROM comments WHERE post_id=?').get(p.id).n}}
+ function post(p){return {...p,author:profile(p.profile_id),thumbnailUrl:'/admin/api/media/'+p.id+'?size=thumb',imageUrl:'/admin/api/media/'+p.id,...Metadata.likeCounts(db,p.id),comments:db.prepare('SELECT COUNT(*) n FROM comments WHERE post_id=?').get(p.id).n}}
  function comment(c){return {...c,author:profile(c.profile_id),postExists:!!db.prepare('SELECT 1 FROM posts WHERE id=?').get(c.post_id)}}
  const selectPost='SELECT id,profile_id,caption,created_at,width,height,bytes FROM posts';
  function target(kind,id){if(kind==='profile')return profile(id);if(!/^\d+$/.test(id))return null;if(kind==='post'){const p=db.prepare(selectPost+' WHERE id=?').get(Number(id));return p?post(p):null}const c=db.prepare('SELECT * FROM comments WHERE id=?').get(Number(id));return c?comment(c):null}
@@ -27,7 +29,7 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
  const before=u=>u.searchParams.has('before')?numeric(u.searchParams.get('before')):Number.MAX_SAFE_INTEGER;
  const query=u=>{const q=(u.searchParams.get('q')||'').trim();if([...q].length>100)fail(400,'Поиск: не более 100 символов.');return q};
  const errorPage=message=>'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/admin/app.css"><title>Zoigram · Модерация</title><main class="auth-shell"><section class="auth-card"><div class="brand-mark">Z</div><h1>Не удалось войти</h1><p>'+String(message).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p><a class="primary button" href="/admin/">Вернуться в панель</a></section></main></html>';
- const assets=new Map([['/admin/',['index.html','text/html']],['/admin/app.js',['app.js','application/javascript']],['/admin/app.css',['app.css','text/css']]].map(([url,[name,type]])=>[url,{type,body:fs.readFileSync(path.join(__dirname,'../admin',name),'utf8')} ]));
+ const assets=new Map([['/admin/',['index.html','text/html']],['/admin/zoimeet.js',['zoimeet.js','application/javascript']],['/admin/app.js',['app.js','application/javascript']],['/admin/app.css',['app.css','text/css']]].map(([url,[name,type]])=>[url,{type,body:fs.readFileSync(path.join(__dirname,'../admin',name),'utf8')} ]));
  async function handle(req,res,u,ip){
   if(u.pathname!=='/admin'&&!u.pathname.startsWith('/admin/'))return false;
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");res.setHeader('X-Frame-Options','DENY');res.setHeader('Cross-Origin-Resource-Policy','same-origin');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Language','ru');res.setHeader('Cache-Control','no-store');
@@ -51,6 +53,7 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
    if(m==='POST')protect(req,s);else if(m!=='GET')fail(405,'Метод не поддерживается.');
    if(m==='POST'&&p==='/admin/api/logout'){db.prepare('DELETE FROM admin_sessions WHERE id=?').run(s.id);res.setHeader('Set-Cookie',cookie(sessionName,'',0));send(res,200,{ok:true});return true}
    if(m==='POST'&&p==='/admin/api/actions'){limit('admin-action:'+s.profile_id,30);const body=await json(req,8192);send(res,200,act(db,body,{id:s.profile_id},ownerSteamId));return true}
+   if(m==='GET'&&p==='/admin/api/zoimeet'){send(res,200,await monitor(u.searchParams));return true;}
    if(m==='GET'&&p==='/admin/api/summary'){send(res,200,summary());return true}
    const media=p.match(/^\/admin\/api\/media\/(\d+)$/);if(m==='GET'&&media){const id=numeric(media[1]),photo=db.prepare('SELECT '+(u.searchParams.get('size')==='thumb'?'thumbnail':'image')+' image FROM posts WHERE id=?').get(id);if(!photo)fail(404,'Фото уже удалено.');res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':photo.image.length});res.end(Buffer.from(photo.image));return true}
    if(m==='GET'&&p==='/admin/api/profiles'){

@@ -248,6 +248,7 @@ return {
   ["Войти / создать аккаунт"]="Войти / создать аккаунт",
   ["Логин и пароль Zoigram. Без почты и Steam."]="Логин и пароль Zoigram. Без почты и Steam.",
   ["Вход настроен. Сохраните резервный код в браузере."]="Вход настроен. Сохраните резервный код в браузере.",
+  ["Подтверждённый аккаунт"]="Подтверждённый аккаунт",
  },
  en={
   ["Загрузить фото"]="Upload photo",
@@ -497,6 +498,7 @@ return {
   ["Войти / создать аккаунт"]="Sign in / create account",
   ["Логин и пароль Zoigram. Без почты и Steam."]="Your Zoigram username and password. No email or Steam.",
   ["Вход настроен. Сохраните резервный код в браузере."]="Sign-in is set up. Save the recovery code shown in your browser.",
+  ["Подтверждённый аккаунт"]="Verified account",
  },
  fr={
   ["Загрузить фото"]="Importer une photo",
@@ -746,6 +748,7 @@ return {
   ["Войти / создать аккаунт"]="Se connecter / créer un compte",
   ["Логин и пароль Zoigram. Без почты и Steam."]="Identifiant et mot de passe Zoigram. Sans e-mail ni Steam.",
   ["Вход настроен. Сохраните резервный код в браузере."]="Connexion configurée. Conservez le code de récupération affiché dans le navigateur.",
+  ["Подтверждённый аккаунт"]="Compte vérifié",
  },
  ko={
   ["Загрузить фото"]="사진 업로드",
@@ -995,5 +998,6 @@ return {
   ["Войти / создать аккаунт"]="로그인 / 계정 만들기",
   ["Логин и пароль Zoigram. Без почты и Steam."]="Zoigram 아이디와 비밀번호로 로그인하세요. 이메일이나 Steam은 필요 없습니다.",
   ["Вход настроен. Сохраните резервный код в браузере."]="로그인이 설정되었습니다. 브라우저에 표시된 복구 코드를 보관해 주세요.",
+  ["Подтверждённый аккаунт"]="인증된 계정",
  },
 }
