@@ -38,7 +38,7 @@ function M.create(outer,actions,returnVisibility)
   view.page=Page.create(kit,actions.online);Kit.fill(column:AddChildToVerticalBox(view.page.root))
   local footerColumn=kit:make(UE.UVerticalBox,'FooterContent');kit:line(footerColumn,'FooterRule')
   local nav=kit:make(UE.UHorizontalBox,'Navigation');footerColumn:AddChild(nav)
-  for _,item in ipairs({{'feed',L.t('Лента'),'NavFeed','home'},{'create','','NavCreate','plus'},{'me',L.t('Профиль'),'NavProfile','user'}})do
+  for _,item in ipairs({{'feed',L.t('Лента'),'NavFeed','home'},{'search',L.t('Поиск'),'NavSearch','search'},{'create','','NavCreate','plus'},{'me',L.t('Профиль'),'NavProfile','user'}})do
    local route=item[1];local body=kit:make(UE.UVerticalBox,item[3]..'Column')
    kit:gap(body,9,item[3]..'Top')
    local glyph,art=kit:glyph(item[4],item[3]..'Icon',route=='create'and 23 or 18,route=='create'and P.accent or P.ink);Kit.center(body,glyph)
@@ -53,7 +53,7 @@ function M.create(outer,actions,returnVisibility)
  if not ok then view:destroy();error(err)end
  function view:renderOnline(model)
   self.model=model;local mode=model.mode
-  local titles={feed='Zoigram',profile=L.t('Профиль'),create=L.t('Новый пост'),comments=L.t('Комментарии'),edit=L.t('Редактировать'),setup=L.t('Настройки'),following=L.t('Подписки'),blocks=L.t('Заблокированные'),report=L.t('Жалоба'),deletePost=L.t('Публикация'),notifications=L.t('Уведомления'),conversations=L.t('Сообщения'),messages=model.selectedConversation and model.selectedConversation.displayName or L.t('Сообщения'),login='Zoigram'}
+  local titles={search=L.t('Поиск'),post=L.t('Публикация'),editPost=L.t('Изменить подпись'),feed='Zoigram',profile=L.t('Профиль'),create=L.t('Новый пост'),comments=L.t('Комментарии'),edit=L.t('Редактировать'),setup=L.t('Настройки'),following=L.t('Подписки'),blocks=L.t('Заблокированные'),report=L.t('Жалоба'),deletePost=L.t('Публикация'),notifications=L.t('Уведомления'),conversations=L.t('Сообщения'),messages=model.selectedConversation and model.selectedConversation.displayName or L.t('Сообщения'),login='Zoigram'}
   self.title:SetText(titles[mode]or'Zoigram')
   local branded=mode=='feed'or mode=='login'
   self.wordmark:SetVisibility(branded and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
@@ -69,9 +69,9 @@ function M.create(outer,actions,returnVisibility)
   self.notificationCount:SetText(n>0 and tostring(math.min(n,99))or'');self.messageCount:SetText(m>0 and tostring(math.min(m,99))or'')
   self.notificationCount:SetVisibility(n>0 and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed);self.messageCount:SetVisibility(m>0 and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
   local context=mode=='login'or mode=='profile';self.headerHit:SetVisibility(context and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed);self.headerAction:SetIsEnabled(not model.busy)
-  local root=mode=='feed'or mode=='profile'or mode=='create';self.footer:SetVisibility(model.me and root and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
+  local root=mode=='feed'or mode=='profile'or mode=='create'or mode=='search';self.footer:SetVisibility(model.me and root and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
   for route,tab in pairs(self.tabs)do
-   tab.label:SetText(route=='feed'and L.t('Лента')or(route=='me'and L.t('Профиль')or''))
+   tab.label:SetText(route=='feed'and L.t('Лента')or(route=='search'and L.t('Поиск')or(route=='me'and L.t('Профиль')or'')))
    local selected=model.tab==route;tab.label:SetColorAndOpacity(Kit.slate(selected and P.ink or P.muted));tab.icon:SetColorAndOpacity(route=='create'and P.accent or P.ink);tab.button:SetIsEnabled(not model.busy)
   end
   self.page:render(model)

@@ -17,7 +17,7 @@ function M.create(kit,action)
  function page:render(model)
   self.model=model;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
   self.status:SetText(L.t(status));self.status:SetColorAndOpacity(Kit.slate(model.error and P.accent or P.muted));self.statusPanel:SetVisibility(status~=''and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
-   local route=tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring(model.mode=='comments'and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
+   local route=tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
   if self.route~=route then self.saved={};self.scroll:ScrollToStart()else for name,w in pairs(self.inputs)do if w:IsValid()then self.saved[name]=tostring(w:GetText())end end end
   self.route=route;self.inputs={};self:stopImages();if self.k then self.k:destroy()end;self.content:ClearChildren();local k=Kit.new(kit.outer);self.k=k;local content=self.content
   self.body:SetPadding(Kit.margin(model.mode=='feed'and 0 or 14))
@@ -83,15 +83,15 @@ function M.create(kit,action)
    gap(40);Kit.center(content,kit:picture(require('B1.UI.IconAsset').load(kit.outer),'OnlineEmptyLogo',62));gap(18)
    content:AddChild(k:text(title,19,'OnlineEmpty',P.ink,true,false,true));gap(6);content:AddChild(k:text(description,12,'OnlineEmptyHint',P.muted,false,false,true));gap(30)
   end
-  local function image(post,column,index)
-   local name='OnlinePhoto'..index;local width=model.mode=='feed'and 324 or 296;local height=math.min(420,width*post.height/math.max(1,post.width));width=height*post.width/math.max(1,post.height)
+  local function image(post,column,index,tile)
+   local name='OnlinePhoto'..index;local width=tile or(model.mode=='feed'and 324 or 296);local height=tile or math.min(420,width*post.height/math.max(1,post.width));if not tile then width=height*post.width/math.max(1,post.height)end
    local overlay=k:make(UE.UOverlay,name..'Overlay');local function stretch(w)local slot=overlay:AddChildToOverlay(w);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Fill);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Fill)end
-   stretch(k:panel(name..'Bg',nil,0,P.surface));local pic=k:make(UE.UImage,name);pic:SetColorAndOpacity(P.white);stretch(pic);pic:SetVisibility(UE.ESlateVisibility.Collapsed)
+   stretch(k:panel(name..'Bg',nil,0,P.surface));local pic=k:make(UE.UImage,name);pic:SetColorAndOpacity(P.white);if tile then local scale=k:make(UE.UScaleBox,name..'Crop');scale:SetStretch(5);scale:AddChild(k:box(name..'Aspect',post.width,post.height,pic));stretch(scale)else stretch(pic)end;pic:SetVisibility(UE.ESlateVisibility.Collapsed)
    local hint=k:text(L.t('Загрузка фото…'),11,name..'Hint',P.muted);local slot=overlay:AddChildToOverlay(hint);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Center);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-   Kit.center(column,k:box(name..'Size',width,height,overlay));local cached=self.cache[post.id]
+   local frame=k:box(name..'Size',width,height,overlay);if tile then frame:SetClipping(1)else Kit.center(column,frame)end;local cached=self.cache[post.id]
    local function show(texture)if pic:IsValid()then pic:SetBrushFromTextureDynamic(texture,false);pic:SetVisibility(UE.ESlateVisibility.Visible);hint:SetVisibility(UE.ESlateVisibility.Collapsed)end end
-   if cached and cached:IsValid()then show(cached);return end
-   if type(post.thumbnailUrl)~='string'or post.thumbnailUrl:sub(1,#model.server+11)~=model.server..'/api/media/'then hint:SetText(L.t('Фото недоступно'));return end
+   if cached and cached:IsValid()then show(cached);return frame end
+   if type(post.thumbnailUrl)~='string'or post.thumbnailUrl:sub(1,#model.server+11)~=model.server..'/api/media/'then hint:SetText(L.t('Фото недоступно'));return frame end
    local generation=self.generation;local ok,err=pcall(function()
     local task=UE.UAsyncTaskDownloadImage.DownloadImage(post.thumbnailUrl);local entry={task=task}
     entry.success=function(...)
@@ -103,6 +103,7 @@ function M.create(kit,action)
     entry.fail=function()if self.generation==generation and hint:IsValid()then hint:SetText(L.t('Фото не загрузилось. Обновите ленту.'))end end
     task.OnSuccess:Add(kit.outer,entry.success);task.OnFail:Add(kit.outer,entry.fail);self.tasks[#self.tasks+1]=entry
    end);if not ok then hint:SetText(L.t('Фото временно недоступно'))end
+   return frame
   end
   local function posts(items)
    if #items==0 then
@@ -117,7 +118,7 @@ function M.create(kit,action)
     local names=k:make(UE.UVerticalBox,'OnlineAuthorNames'..i);names:AddChild(nameLine(post.author,12,'AuthorName'..i));names:AddChild(k:text('@'..post.author.username,10,'OnlineAuthorHandle'..i,P.muted,false,true))
     local author=k:button('OnlineAuthor'..i,names,function()action('profile',post.author.id)end,7);author:SetIsEnabled(not model.busy);Kit.fill(head:AddChildToHorizontalBox(author))
     if model.me and post.author.id==model.me.id then local menu=k:button('OnlinePostMenu'..i,k:glyph('more','OnlinePostMenuGlyph'..i,18),function()action('postMenu',post)end,7);menu:SetIsEnabled(not model.busy);head:AddChild(menu)end
-    if model.postMenu==post.id and model.me and post.author.id==model.me.id then button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)end
+    if model.postMenu==post.id and model.me and post.author.id==model.me.id then button(column,L.t('Изменить подпись'),'EditPost'..i,'editPost',post);button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)end
     image(post,column,i)
     local row=k:make(UE.UHorizontalBox,'OnlineActions'..i);column:AddChild(k:panel('OnlineActionsPad'..i,row,4))
      local reaction=k:make(UE.UHorizontalBox,'OnlineLikeContent'..i)
@@ -130,9 +131,37 @@ function M.create(kit,action)
     if post.caption~=''then column:AddChild(k:panel('OnlineCaptionPad'..i,k:text(post.caption,12,'OnlineCaption'..i,P.ink,false,true,true),10))end
     column:AddChild(k:panel('OnlineDatePad'..i,k:text(L.date(post.createdAt),9,'OnlineDate'..i,P.muted,false,true),10));k:gap(column,6,'OnlinePostGap'..i);k:line(column,'OnlinePostRule'..i,P.line)
    end
+   if model.mode~='post'and model.mode~='comments'and model.cursor then gap();button(content,L.t('Показать ещё'),'More','more')end
+  end
+  local function grid(items)
+   if #items==0 then empty(L.t('История в кадрах'),L.t('Здесь появятся опубликованные фотографии.'));return end
+   for start=1,#items,3 do
+    local row=k:make(UE.UHorizontalBox,'OnlineGridRow'..start);Kit.center(content,k:box('OnlineGridRowSize'..start,296,97,row))
+    for i=start,math.min(start+2,#items)do
+     if i>start then row:AddChild(k:box('OnlineGridGap'..i,2,97))end
+     local post=items[i];local tile=image(post,nil,'Grid'..i,97)
+     local b=k:button('OnlineGridPost'..i,tile,function()action('post',post)end);b:SetIsEnabled(not model.busy);row:AddChild(b)
+    end
+    gap(2)
+   end
    if model.cursor then gap();button(content,L.t('Показать ещё'),'More','more')end
   end
-  if model.mode=='feed'then
+  if model.mode=='search'then
+   gap(8);input('search',L.t('Имя или @ID'),model.searchQuery or'',42);button(content,L.t('Найти игроков'),'RunSearch','runSearch',nil,P.blue,true);gap(14)
+   if model.searchPerformed and #(model.searchResults or{})==0 then empty(L.t('Никого не найдено'),L.t('Попробуйте другое имя или ID.'))
+   elseif not model.searchPerformed then label(L.t('Найдите автора и подпишитесь на его фотографии.'),12,'SearchHint',P.muted)end
+   for i,p in ipairs(model.searchResults or{})do
+    local row=k:make(UE.UHorizontalBox,'OnlineSearchRow'..i);row:AddChildToHorizontalBox(avatar(p,40,'SearchAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+    local names=k:make(UE.UVerticalBox,'OnlineSearchNames'..i);names:AddChild(nameLine(p,13,'SearchName'..i));names:AddChild(k:text('@'..p.username,10,'OnlineSearchHandle'..i,P.muted,false,true))
+    Kit.fill(row:AddChildToHorizontalBox(k:panel('OnlineSearchNamePad'..i,names,9)))
+    local b=k:button('OnlineSearchResult'..i,row,function()action('profile',p.id)end,4);b:SetIsEnabled(not model.busy);content:AddChild(b);k:line(content,'OnlineSearchRule'..i)
+   end
+   if model.searchCursor then gap();button(content,L.t('Показать ещё'),'MoreSearch','moreSearch')end
+  elseif model.mode=='post'then
+   if model.selectedPost then posts({model.selectedPost})end
+  elseif model.mode=='editPost'then
+   if model.editTarget then image(model.editTarget,content,'EditPreview');gap();input('editCaption',L.t('Подпись'),model.editTarget.caption,100);label(L.t('Фотография, лайки и комментарии сохранятся.'),11,'EditCaptionHint',P.muted);gap();button(content,L.t('Сохранить'),'SaveCaption','saveCaption',nil,P.blue,true);gap(8);button(content,L.t('Отмена'),'CancelCaption','back')end
+  elseif model.mode=='feed'then
    local row=k:make(UE.UHorizontalBox,'OnlineFeedFilters');content:AddChild(k:box('OnlineFiltersHeight',nil,42,row))
    for _,choice in ipairs({{'all',L.t('Для вас')},{'following',L.t('Подписки')}})do local scope=choice[1];local active=scope==model.scope;local b=k:button('OnlineScope'..scope,k:text(choice[2],12,'OnlineScopeLabel'..scope,active and P.ink or P.muted,active),function()action('scope',scope)end,10);b:SetIsEnabled(not model.busy);Kit.fill(row:AddChildToHorizontalBox(b))end
     local refresh=k:button('OnlineRefresh',k:glyph('refresh','OnlineRefreshGlyph',17,P.ink),function()action('refresh')end,12);refresh:SetIsEnabled(not model.busy);row:AddChild(refresh)
@@ -145,7 +174,7 @@ function M.create(kit,action)
     if p.isSelf then button(content,L.t('Редактировать профиль'),'EditProfile','edit')
     else button(content,p.isFollowing and L.t('Вы подписаны')or L.t('Подписаться'),'Follow','follow',nil,p.isFollowing and P.ink or P.accent,not p.isFollowing);gap(8);button(content,L.t('Написать сообщение'),'MessageProfile','message',p.id,P.blue,true);gap(8);button(content,L.t('Пожаловаться'),'ReportProfileDirect','report',{kind='profile',id=p.id},P.muted)end
     if model.profileMenu and not p.isSelf then gap(8);button(content,model.confirmBlock==p.id and L.t('Подтвердить блокировку')or L.t('Заблокировать'),'Block','block',nil,P.accent)end
-    gap(16);k:line(content,'OnlineProfileRule');posts(model.posts)
+    gap(16);k:line(content,'OnlineProfileRule');gap(8);grid(model.posts)
    else label(L.t('Загрузка профиля…'),13,'ProfileLoading',P.muted)end
    elseif model.mode=='notifications'then
     gap(4)
@@ -242,6 +271,7 @@ function M.create(kit,action)
    if #(model.accounts or{})==0 then label(L.t('Здесь пока никого.'),13,'AccountsEmpty',P.muted)end
     if model.mode=='following'and model.accountsCursor then button(content,L.t('Показать ещё'),'MoreAccounts','moreAccounts')end
    end
+   if model.restoreScroll then local offset=model.restoreScroll;model.restoreScroll=nil;pcall(function()self.scroll:SetScrollOffset(offset)end)end
    if model.mode=='messages'and model.scrollMessages then model.scrollMessages=false;pcall(function()self.scroll:ScrollToEnd()end)end
   end
  function page:reset()self.scroll:ScrollToStart()end

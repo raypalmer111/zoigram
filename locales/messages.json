@@ -1486,5 +1486,83 @@
     "Verified account",
     "Compte vérifié",
     "인증된 계정"
+  ],
+  [
+    "Поиск",
+    "Search",
+    "Recherche",
+    "검색"
+  ],
+  [
+    "Имя или @ID",
+    "Name or @ID",
+    "Nom ou @ID",
+    "이름 또는 @ID"
+  ],
+  [
+    "Найти игроков",
+    "Find players",
+    "Trouver des joueurs",
+    "플레이어 찾기"
+  ],
+  [
+    "Никого не найдено",
+    "No players found",
+    "Aucun joueur trouvé",
+    "플레이어를 찾을 수 없습니다"
+  ],
+  [
+    "Попробуйте другое имя или ID.",
+    "Try another name or ID.",
+    "Essayez un autre nom ou ID.",
+    "다른 이름이나 ID로 검색해 보세요."
+  ],
+  [
+    "Найдите автора и подпишитесь на его фотографии.",
+    "Find a creator and follow their photos.",
+    "Trouvez un créateur et abonnez-vous à ses photos.",
+    "사진을 공유하는 플레이어를 찾아 팔로우하세요."
+  ],
+  [
+    "Изменить подпись",
+    "Edit caption",
+    "Modifier la légende",
+    "설명 수정"
+  ],
+  [
+    "Фотография, лайки и комментарии сохранятся.",
+    "Your photo, likes and comments will be kept.",
+    "La photo, les mentions J’aime et les commentaires seront conservés.",
+    "사진, 좋아요, 댓글은 그대로 유지됩니다."
+  ],
+  [
+    "Подпись обновлена.",
+    "Caption updated.",
+    "Légende mise à jour.",
+    "설명이 수정되었습니다."
+  ],
+  [
+    "Можно изменить только свою публикацию.",
+    "You can only edit your own post.",
+    "Vous ne pouvez modifier que vos propres publications.",
+    "자신의 게시물만 수정할 수 있습니다."
+  ],
+  [
+    "Можно изменить только подпись.",
+    "Only the caption can be changed.",
+    "Seule la légende peut être modifiée.",
+    "설명만 변경할 수 있습니다."
+  ],
+  [
+    "Подпись уже изменена. Откройте публикацию заново.",
+    "The caption has changed. Reopen the post before editing.",
+    "La légende a changé. Rouvrez la publication avant de la modifier.",
+    "설명이 이미 변경되었습니다. 게시물을 다시 열어 수정하세요."
+  ],
+  [
+    "Неверная страница поиска.",
+    "Invalid search page.",
+    "Page de recherche incorrecte.",
+    "잘못된 검색 페이지입니다."
   ]
 ]

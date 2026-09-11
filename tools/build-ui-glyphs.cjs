@@ -4,6 +4,7 @@ const fs=require('node:fs'),path=require('node:path');
 const sharp=require('../server/node_modules/sharp');
 const root=path.resolve(__dirname,'..');
 const symbols={
+ search:'<circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/>',
  verified:'<defs><mask id="check"><rect width="24" height="24" fill="white" stroke="none"/><path d="m7 12 3.2 3.2 6.6-6.5" stroke="black" stroke-width="2.6"/></mask></defs><path fill="white" stroke="none" mask="url(#check)" d="m12 1 3 2 3.6.4 1 3.5L22 10l-1 3.5.4 3.6-3.1 1.8-2 3-3.6-.4-3.4 1-2.7-2.4-3.5-1-.4-3.6L1 12l2-3 .4-3.6 3.5-1L10 2Z"/>',
  back:'<path d="m14.5 5-7 7 7 7"/>',
  heart:'<path d="M20.5 4.9a5.5 5.5 0 0 0-7.8 0L12 5.6l-.7-.7a5.5 5.5 0 0 0-7.8 7.8L12 21l8.5-8.3a5.5 5.5 0 0 0 0-7.8Z"/>',

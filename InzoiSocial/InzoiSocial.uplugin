@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
-  "Version": 15,
-  "VersionName": "0.15.0",
+  "Version": 16,
+  "VersionName": "0.5.0",
   "FriendlyName": "Zoigram",
   "Description": "Zoigram: player accounts, Photo Mode posts, avatars, notifications, reports and private messages.",
   "Category": "UGC",

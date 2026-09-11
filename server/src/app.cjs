@@ -12,6 +12,7 @@ const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const page=(title,body,language)=>'<!doctype html><html lang="'+language+'"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>'+escape(title)+' · Zoigram</title><style>body{font:16px system-ui;margin:12vh auto;padding:24px;max-width:500px;color:#25212c;background:#faf8fc}main{background:white;padding:32px;border-radius:24px;box-shadow:0 12px 60px #44224412}a,button{display:inline-block;padding:14px 20px;background:#a92fc2;color:white;border:0;border-radius:12px;text-decoration:none;font:inherit}p{line-height:1.6}code{font-size:24px}small{color:#777}</style><main><h1>'+escape(title)+'</h1>'+body+'</main></html>';
 function createApp(options={}){
  const db=options.db||openStore(options.database),origin=new URL(options.origin).origin,secret=options.secret||crypto.randomBytes(32),now=()=>Date.now();
+ db.function('zoigram_fold',{deterministic:true},value=>String(value||'').normalize('NFKC').toLowerCase());
  const local=['127.0.0.1','localhost','[::1]'].includes(new URL(origin).hostname);
  if(!local&&!origin.startsWith('https://'))throw Error('Public origin requires HTTPS');
  const budget=options.storageBytes||10*1024*1024*1024,limits=new Map();let conversions=0;
@@ -49,7 +50,7 @@ function createApp(options={}){
    limit('ip:'+ip,600);if(method==='GET'&&p==='/health')return send(res,200,{ok:true,service:'Zoigram',version:require('../package.json').version});
    if(await avatars.handle(req,res,u))return;
    if(await accounts.handle(req,res,u,ip,language))return;
-    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true},languages:I18n.languages,limits:{imageBytes:MAX_IMAGE,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
+    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true},languages:I18n.languages,limits:{imageBytes:MAX_IMAGE,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
    if(method==='POST'&&p==='/api/auth/device'){
     limit('device:'+ip,6,600000);const deviceToken=random(),userCode=crypto.randomBytes(5).toString('hex').toUpperCase(),expiresAt=now()+600000;
     db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at) VALUES(?,?,?)').run(hash(deviceToken),userCode,expiresAt);
@@ -76,6 +77,13 @@ function createApp(options={}){
     if(['id','profileId','provider','subject'].some(k=>Object.hasOwn(b,k))||Object.hasOwn(b,'username')&&b.username!==current.username)fail(403,'ID аккаунта закреплён. Изменить его может только модератор.');
     const name=text(b.displayName,40,true),bio=text(b.bio||'',160);
     db.prepare('UPDATE profiles SET display_name=?,bio=? WHERE id=?').run(name,bio,uid);return send(res,200,{profile:profile(uid,uid)});
+   }
+   if(method==='GET'&&p==='/api/profiles/search'){
+    limit('search:'+uid,60);const query=text(u.searchParams.get('q')||'',80).normalize('NFKC').replace(/^@/,'').toLowerCase(),after=u.searchParams.get('after')||'';
+    if(after&&!/^[a-f0-9-]{36}$/.test(after))fail(400,'Неверная страница поиска.');
+    if(!query)return send(res,200,{profiles:[],nextCursor:null});
+    const rows=db.prepare(`SELECT p.id FROM profiles p WHERE p.banned=0 AND p.id>? AND (instr(zoigram_fold(p.username),?)>0 OR instr(zoigram_fold(p.display_name),?)>0) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.id) OR (b.blocker_id=p.id AND b.blocked_id=?)) ORDER BY p.id LIMIT 21`).all(after,query,query,uid,uid);
+    return send(res,200,{profiles:rows.slice(0,20).map(p=>profile(p.id,uid)),nextCursor:rows.length>20?rows[19].id:null});
    }
    if(method==='GET'&&p==='/api/activity')return send(res,200,{unreadNotifications:unreadNotifications(uid),unreadMessages:unreadMessages(uid)});
    if(method==='GET'&&p==='/api/notifications'){
@@ -114,6 +122,13 @@ function createApp(options={}){
    const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments))?$/);
    if(postRoute){const id=Number(postRoute[1]),action=postRoute[2],post=visiblePost(id,uid);
     if(!action&&method==='GET')return send(res,200,{post:postDto(post,s)});
+    if(!action&&method==='PATCH'){
+     limit('edit-post:'+uid,30);if(post.profile_id!==uid)fail(403,'Можно изменить только свою публикацию.');
+     const body=await json(req);if(Object.keys(body).some(k=>!['caption','expectedCaption'].includes(k)))fail(400,'Можно изменить только подпись.');
+     const caption=text(body.caption,2200),expected=text(body.expectedCaption,2200);
+     transaction(db,()=>{const current=visiblePost(id,uid);if(current.caption===caption)return;if(current.caption!==expected)fail(409,'Подпись уже изменена. Откройте публикацию заново.');db.prepare('UPDATE posts SET caption=? WHERE id=? AND profile_id=?').run(caption,id,uid)});
+     return send(res,200,{post:postDto(visiblePost(id,uid),s)});
+    }
     if(!action&&method==='DELETE'){if(post.profile_id!==uid)fail(403,'Можно удалить только свою публикацию.');db.prepare('DELETE FROM posts WHERE id=?').run(id);return send(res,200,{ok:true})}
     if(action==='like'&&['PUT','DELETE'].includes(method)){transaction(db,()=>{if(method==='PUT'){const changed=db.prepare('INSERT OR IGNORE INTO likes VALUES(?,?)').run(uid,id).changes;if(changed)notify(post.profile_id,uid,'like',id)}else{db.prepare('DELETE FROM likes WHERE profile_id=? AND post_id=?').run(uid,id);db.prepare("DELETE FROM notifications WHERE kind='like' AND actor_id=? AND post_id=?").run(uid,id)}});return send(res,200,{post:postDto(post,s)})}
     if(action==='comments'&&method==='GET'){

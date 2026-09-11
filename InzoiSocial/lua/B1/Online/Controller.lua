@@ -28,7 +28,7 @@ end
 function M:connect(value)
  local server=Transport.server(value)
  if not server then self.error='Укажите HTTPS-адрес сервера.';self:draw();return end
- if self.server~=server then self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.server=server;self.mode='setup'
+ if self.server~=server then self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.server=server;self.mode='setup'
  self:request('GET','/api/info',nil,function(info)
   if info.authentication~='password'or info.origin~=self.server then self.error='По этому адресу нет совместимого сервера Zoigram.';return end
   self.info=info;self:saveConfig();self.mode='login';self.pendingLogin=nil
@@ -58,6 +58,18 @@ function M:feed(scope,more)
   self.cursor=r.nextCursor
  end)
 end
+function M:search(more)
+ self.mode='search'
+ local query=more and self.searchQuery or self:input('search');query=(query or''):gsub('^%s+',''):gsub('%s+$','')
+ if not more then self.searchQuery=query;self.searchResults={};self.searchCursor=nil end
+ if query==''then self.searchPerformed=false;self:draw();return end
+ local encoded=query:gsub('[^%w%-_%.~]',function(c)return string.format('%%%02X',c:byte())end)
+ local path='/api/profiles/search?q='..encoded;if more and self.searchCursor then path=path..'&after='..self.searchCursor end
+ self:request('GET',path,nil,function(r)
+  if more then for _,p in ipairs(r.profiles or{})do self.searchResults[#self.searchResults+1]=p end else self.searchResults=r.profiles or{}end
+  self.searchCursor=r.nextCursor;self.searchPerformed=true
+ end)
+end
 function M:profile(id,more)
  if not id then return end;self.mode='profile';self.profileId=id
  local function posts()local path='/api/feed?profile='..id;if more and self.cursor then path=path..'&before='..self.cursor end
@@ -68,7 +80,7 @@ end
 function M:discussion(post,more)
  self.mode='comments';self.selectedPost=post;local path='/api/posts/'..post.id..'/comments'
  if more and self.commentCursor then path=path..'?after='..self.commentCursor end
- self:request('GET',path,nil,function(r)self.selectedPost=r.post;if more then for _,c in ipairs(r.comments or{})do self.comments[#self.comments+1]=c end else self.comments=r.comments or{}end;self.commentCursor=r.nextCursor end)
+ self:request('GET',path,nil,function(r)self:replacePost(r.post);self.selectedPost=r.post;if more then for _,c in ipairs(r.comments or{})do self.comments[#self.comments+1]=c end else self.comments=r.comments or{}end;self.commentCursor=r.nextCursor end)
 end
 function M:notificationsPage(more)
  self.mode='notifications';local path='/api/notifications';if more and self.notificationCursor then path=path..'?before='..self.notificationCursor end
@@ -97,8 +109,11 @@ function M:thread(id,more)
  end)
 end
 function M:replacePost(post)
- for i,p in ipairs(self.posts)do if p.id==post.id then self.posts[i]=post end end
- if self.selectedPost and self.selectedPost.id==post.id then self.selectedPost=post end
+ local function update(state)
+  for i,p in ipairs(state.posts or{})do if p.id==post.id then state.posts[i]=post end end
+  if state.selectedPost and state.selectedPost.id==post.id then state.selectedPost=post end
+ end
+ update(self);for _,state in ipairs(self.history or{})do update(state)end
 end
 function M:create()
  if not self.me then self.mode='login';self:draw();return end
@@ -170,14 +185,14 @@ function M:accountAccess()
  end)
 end
 function M:snapshot()
- return {mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
+ return {scrollOffset=self.app.view.page and self.app.view.page.scroll:GetScrollOffset()or 0,searchQuery=self.searchQuery,searchResults=self.searchResults,searchCursor=self.searchCursor,searchPerformed=self.searchPerformed,mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
 end
 function M:push()
  self.history=self.history or{};self.history[#self.history+1]=self:snapshot();if #self.history>8 then table.remove(self.history,1)end;self.postMenu=nil;self.profileMenu=nil
 end
 function M:restore(state,refresh)
- for _,key in ipairs({'mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
- self.postMenu=nil;self.deleteTarget=nil;self.profileMenu=nil
+ for _,key in ipairs({'searchQuery','searchResults','searchCursor','searchPerformed','mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
+ self.restoreScroll=state.scrollOffset;self.postMenu=nil;self.deleteTarget=nil;self.profileMenu=nil
  if refresh and self.mode=='feed'then self:feed(self.scope)
  elseif refresh and self.mode=='profile'then self:profile(self.profileId)
  else self:draw()end
@@ -199,6 +214,20 @@ function M:act(action,value)
  elseif action=='openLogin'then self:openLogin()
  elseif action=='cancelLogin'then self.pendingLogin=nil;self:draw()
  elseif action=='feed'then self.history={};self.tab='feed';self.postMenu=nil;self:feed(self.scope)
+ elseif action=='search'then self.history={};self.tab='search';self.mode='search';self:draw()
+ elseif action=='runSearch'then self:search(false)
+ elseif action=='moreSearch'then self:search(true)
+ elseif action=='post'then self:request('GET','/api/posts/'..value.id,nil,function(r)self:push();self.selectedPost=r.post;self.mode='post'end)
+ elseif action=='editPost'then
+  if not self.me or value.author.id~=self.me.id then return end
+  self:push();self.editTarget=value;self.mode='editPost';self:draw()
+ elseif action=='saveCaption'then
+  local target=self.editTarget;if not target or not self.me or target.author.id~=self.me.id then return end
+  local caption=self:input('editCaption');if require('B1.Data.PhotoDraft').captionLength(caption)>2200 then self.error='Подпись должна быть не длиннее 2200 символов.';self:draw();return end
+  self:request('PATCH','/api/posts/'..target.id,{caption=caption,expectedCaption=target.caption},function(r)
+   self:replacePost(r.post);self.editTarget=nil;local previous=table.remove(self.history);self.notice='Подпись обновлена.'
+   if previous then self:restore(previous,false)else self.selectedPost=r.post;self.mode='post'end
+  end)
  elseif action=='scope'then self.history={};self.tab='feed';self.postMenu=nil;self:feed(value)
  elseif action=='refresh'then self.postMenu=nil;self:feed(self.scope)
  elseif action=='notifications'then if self.mode~='notifications'then self:push()end;self.notifications={};self.notificationCursor=nil;self:notificationsPage(false)
@@ -233,7 +262,7 @@ function M:act(action,value)
  elseif action=='removeAvatar'then self:request('DELETE','/api/me/avatar',nil,function()self.pendingAvatar=nil;self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.notice='Аватар удалён.'end)end)
  elseif action=='saveProfile'then self:request('PATCH','/api/me',{displayName=self:input('name'),bio=self:input('bio')},function(r)self.me=r.profile;table.remove(self.history);self:profile(r.profile.id)end)
  elseif action=='settings'then if self.mode~='setup'then self:push();self.mode='setup';self:draw()end
- elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self.me=nil;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
+ elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
  elseif action=='deletePost'then
   if not self.me or not value or value.author.id~=self.me.id then self.error='Можно удалить только свою публикацию.';self:draw();return end
   self:push();self.deleteTarget=value;self.mode='deletePost';self:draw()
@@ -243,7 +272,9 @@ function M:act(action,value)
   self:request('DELETE','/api/posts/'..target.id,nil,function()
    self.deleteTarget=nil;self.postMenu=nil;self.selectedPost=nil;if self.app.view.invalidateOnlinePhoto then self.app.view:invalidateOnlinePhoto(target.id)end
    self.me.postCount=math.max(0,(self.me.postCount or 1)-1)
+   for _,state in ipairs(self.history or{})do for i=#(state.posts or{}),1,-1 do if state.posts[i].id==target.id then table.remove(state.posts,i)end end end
    local previous=table.remove(self.history)
+   while previous and (previous.mode=='post'or previous.mode=='comments')and previous.selectedPost and previous.selectedPost.id==target.id do previous=table.remove(self.history)end
    self.notice='Публикация удалена.'
    if previous then self:restore(previous,true)else self.tab='feed';self:feed(self.scope)end
   end)
