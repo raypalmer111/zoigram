@@ -269,5 +269,12 @@
   "Лайки, комментарии и подписки появятся здесь.": "Likes, Kommentare und neue Follower erscheinen hier.",
   "Новый комментарий от {name}": "Neuer Kommentar von {name}",
   "Отправить геолокацию": "Standort senden",
-  "Язык меняется автоматически вместе с языком игры.": "Die Sprache folgt automatisch deinen Spieleinstellungen."
+  "Язык меняется автоматически вместе с языком игры.": "Die Sprache folgt automatisch deinen Spieleinstellungen.",
+  "Все": "Alle",
+  "Непрочитанные": "Ungelesen",
+  "Всё прочитано": "Alles gelesen",
+  "Новые сообщения появятся здесь.": "Neue Nachrichten erscheinen hier.",
+  "Черновик: {text}": "Entwurf: {text}",
+  "Не удалось сохранить черновик сообщения.": "Dein Nachrichtenentwurf konnte nicht gespeichert werden.",
+  "Неверный фильтр диалогов.": "Ungültiger Gesprächsfilter."
 }

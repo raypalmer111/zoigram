@@ -1,0 +1,112 @@
+Zoigram 0.6.1 — manual installation
+Requires a Zoigram server running 0.18.1 or newer with password authentication.
+Do not distribute this client before your community server has been updated.
+
+ENGLISH
+Close inZOI and extract the ZIP. Copy the entire InzoiSocial_YV6DPJ folder to your
+Windows Documents\inZOI\Mods\InGame folder; keep the exact folder name.
+For an update, remove ONLY the old lua and ui subfolders inside this mod folder,
+then copy the new files with replacement. Keep online and assets: they contain
+your saved session, settings and local photos. Enable one copy of Zoigram.
+
+Open Zoigram > Sign in / create account. Confirm the code shown in the game,
+then choose your private login and password in the browser. No email or Steam
+connection is required. Save the one-time recovery code somewhere private.
+Passwords are 15–128 characters; a long phrase is supported. A login uses
+3–32 Latin letters, digits or underscores. Other players see your assigned
+public ID, not your private login. Only the moderator can change the public ID.
+Existing players: keep your saved session and go to Profile > Edit profile >
+Sign-in and recovery BEFORE signing out to attach credentials to the same profile.
+If your old session expired before setup, contact the owner; creating another
+account will not recover your old posts. Recovery requires the saved recovery code.
+Without a password and recovery code, automatic recovery is not available.
+
+Internet access is required to exchange posts, avatars, comments, likes,
+follows, reports and private messages with the community server.
+Use + to publish a Photo Mode image. Profile > Edit profile lets you upload
+your own avatar. The heart opens notifications; the envelope opens messages.
+No EXE, DLL, installer script, nested ZIP or server files are in this player ZIP.
+
+РУССКИЙ
+Закройте inZOI. Распакуйте ZIP и скопируйте папку InzoiSocial_YV6DPJ целиком в
+Документы\inZOI\Mods\InGame. Название папки менять нельзя.
+При обновлении удалите ТОЛЬКО старые подпапки lua и ui внутри папки мода,
+затем скопируйте новые файлы с заменой. Сохраните online и assets:
+в них находятся сеанс, настройки и локальные фото. Включите одну копию Zoigram.
+В приложении нажмите «Войти / создать аккаунт», сверьте код с игрой и создайте
+логин с паролем в браузере. Почта и Steam не нужны. Сохраните резервный код.
+Пароль: 15–128 символов; логин: 3–32 латинские буквы, цифры или _.
+Другие игроки видят назначенный публичный ID; менять его может только модератор.
+Старый аккаунт: до выхода откройте Профиль → Редактировать → Вход и восстановление.
+Публикации и ID сохранятся. Если старый сеанс уже истёк, обратитесь к владельцу.
+Новая регистрация не восстановит старый профиль. Без пароля и резервного кода
+автоматического восстановления нет. Сервер должен быть обновлён до 0.18.1.
+Интернет нужен для публикаций и общения. Установщик запускать не нужно.
+
+FRANÇAIS
+Fermez inZOI. Copiez le dossier InzoiSocial_YV6DPJ dans
+Documents\inZOI\Mods\InGame, sans le renommer.
+Pour mettre à jour, supprimez uniquement les anciens sous-dossiers lua et ui,
+puis copiez les nouveaux fichiers. Conservez online et assets.
+Dans Zoigram, ouvrez la connexion, vérifiez le code du jeu et choisissez un
+identifiant privé et un mot de passe dans le navigateur. Aucun e-mail ni Steam.
+Conservez le code de récupération : sans mot de passe ni code, la récupération
+automatique est impossible. Mot de passe : 15–128 caractères.
+Votre identifiant public reste distinct et seul le modérateur peut le modifier.
+Ancien compte : configurez la connexion dans la modification du profil AVANT
+de vous déconnecter. Les publications et l'identifiant public sont conservés.
+Si la session a expiré, contactez le propriétaire. Internet et serveur 0.18.1 requis.
+
+한국어
+inZOI를 종료하세요. InzoiSocial_YV6DPJ 폴더를 이름 변경 없이
+문서\inZOI\Mods\InGame에 복사하세요.
+업데이트할 때 기존 모드의 lua와 ui 하위 폴더만 삭제하고 새 파일을 복사하세요.
+세션, 설정, 사진이 있는 online과 assets 폴더는 유지하세요.
+Zoigram에서 로그인을 열고 게임의 코드를 확인한 뒤 브라우저에서
+로그인 아이디와 비밀번호를 만드세요. 이메일과 Steam 연결은 필요하지 않습니다.
+비밀번호는 15–128자입니다. 복구 코드를 안전하게 보관하세요.
+비밀번호와 복구 코드를 모두 잃으면 자동 복구가 불가능합니다.
+공개 ID는 로그인 아이디와 다르며 운영자만 변경할 수 있습니다.
+기존 계정은 로그아웃하기 전에 프로필 편집에서 로그인 및 복구를 설정하세요.
+게시물과 공개 ID는 유지됩니다. 세션이 만료되었다면 운영자에게 문의하세요.
+인터넷 연결과 서버 버전 0.18.1 이상이 필요합니다.
+
+Version 0.6.1: English, Russian, French, Korean, German and Simplified Chinese.
+The app automatically uses your game language (English for unsupported languages).
+Tap the bookmark below a post; find saved posts in Profile > Settings > Saved posts.
+Saved posts are private. New comments on your posts appear in Notifications.
+Messages > Send location currently displays Coming soon. No location is sent.
+Sign-in pages in the browser remain in English.
+
+DEUTSCH
+Schließe inZOI und entpacke die ZIP-Datei. Kopiere den gesamten Ordner
+InzoiSocial_YV6DPJ nach Dokumente\inZOI\Mods\InGame. Benenne ihn nicht um.
+Entferne bei einem Update nur die alten Unterordner lua und ui dieses Mods.
+Kopiere dann die neuen Dateien. Behalte online und assets mit deinen
+Einstellungen, deiner Sitzung und deinen Fotos. Aktiviere nur eine Mod-Kopie.
+Zoigram verwendet automatisch die Spielsprache. Die Anmeldung im Browser ist
+auf Englisch. E-Mail und Steam sind nicht erforderlich. Bewahre deinen
+Wiederherstellungscode sicher auf. Internet und Server 0.18.1 sind erforderlich.
+Tippe auf das Lesezeichen, um einen Beitrag privat zu speichern. Gespeicherte
+Beiträge findest du unter Profil > Einstellungen > Gespeicherte Beiträge.
+Neue Kommentare erscheinen in den Benachrichtigungen. Standort senden zeigt
+vorerst Coming soon an und überträgt keinen Standort.
+
+简体中文
+关闭 inZOI 并解压 ZIP，将整个 InzoiSocial_YV6DPJ 文件夹复制到
+文档\inZOI\Mods\InGame，不要更改文件夹名称。
+更新时，只删除此模组文件夹内旧的 lua 和 ui 子文件夹，再复制新文件覆盖。
+保留 online 和 assets，其中保存了登录状态、设置及本地照片。只启用一份模组。
+应用自动跟随游戏语言，浏览器登录页面仍使用英语。无需邮箱或 Steam。
+请妥善保存恢复代码。需要互联网连接及 0.18.1 或更新版本的服务器。
+点击帖子下方的书签即可收藏，在“个人主页 > 设置 > 收藏”查看。收藏仅自己可见。
+帖子收到新评论时会显示通知。私信中的“发送位置”暂时只显示 Coming soon，
+不会获取或发送任何位置。
+
+0.6.1: Messages now has All / Unread filters. Message drafts are saved locally
+for up to 20 recent chats and restored after restart. Signing out clears drafts.
+Keep the online folder when updating. Drafts are not sent until you press Send.
+
+0.6.1: В переписке появились фильтры «Все» / «Непрочитанные». Черновики до
+20 последних чатов сохраняются локально и восстанавливаются после перезапуска.
+Выход из аккаунта очищает черновики. При обновлении сохраните папку online.

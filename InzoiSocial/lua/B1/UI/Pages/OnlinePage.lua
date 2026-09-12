@@ -17,7 +17,7 @@ function M.create(kit,action)
  function page:render(model)
   self.model=model;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
   self.status:SetText(L.t(status));self.status:SetColorAndOpacity(Kit.slate(model.error and P.accent or P.muted));self.statusPanel:SetVisibility(status~=''and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
-   local route=tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
+   local route=tostring(model.server)..':'..tostring(model.me and model.me.id or'')..':'..tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
   if self.route~=route then self.saved={};self.scroll:ScrollToStart()else for name,w in pairs(self.inputs)do if w:IsValid()then self.saved[name]=tostring(w:GetText())end end end
   self.route=route;self.inputs={};self:stopImages();if self.k then self.k:destroy()end;self.content:ClearChildren();local k=Kit.new(kit.outer);self.k=k;local content=self.content
   self.body:SetPadding(Kit.margin(model.mode=='feed'and 0 or 14))
@@ -192,10 +192,12 @@ function M.create(kit,action)
     if model.notificationCursor then gap();button(content,L.t('Показать ещё'),'MoreNotifications','moreNotifications')end
    elseif model.mode=='conversations'then
     gap(4)
-    if #(model.conversations or{})==0 then empty(L.t('Пока нет сообщений'),L.t('Напишите игроку из его профиля.'))end
+    local filters=k:make(UE.UHorizontalBox,'OnlineConversationFilters');content:AddChild(filters)
+     button(filters,L.t('Все'),'ConversationAll','conversationFilter','all',P.blue,model.conversationFilter~='unread');button(filters,L.t('Непрочитанные'),'ConversationUnread','conversationFilter','unread',P.blue,model.conversationFilter=='unread');gap(10)
+     if #(model.conversations or{})==0 then if model.conversationFilter=='unread'then empty(L.t('Всё прочитано'),L.t('Новые сообщения появятся здесь.'))else empty(L.t('Пока нет сообщений'),L.t('Напишите игроку из его профиля.'))end end
     for i,c in ipairs(model.conversations or{})do
      local row=k:make(UE.UHorizontalBox,'OnlineConversationRow'..i);row:AddChildToHorizontalBox(avatar(c.participant,46,'ConversationAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-     local copy=k:make(UE.UVerticalBox,'OnlineConversationCopy'..i);copy:AddChild(nameLine(c.participant,13,'ConversationName'..i));local preview=c.lastMessage.outgoing and L.t('Вы: {text}',{text=c.lastMessage.text})or c.lastMessage.text;copy:AddChild(k:text(preview,10,'OnlineConversationPreview'..i,P.muted,false,true,true));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+     local copy=k:make(UE.UVerticalBox,'OnlineConversationCopy'..i);copy:AddChild(nameLine(c.participant,13,'ConversationName'..i));local draft=model:messageDraft(c.participant.id);local preview=c.lastMessage.outgoing and L.t('Вы: {text}',{text=c.lastMessage.text})or c.lastMessage.text;if draft~=''then preview=L.t('Черновик: {text}',{text=draft})end;copy:AddChild(k:text(require('B1.Data.MessageDrafts').preview(preview),10,'OnlineConversationPreview'..i,draft~=''and P.accent or P.muted,c.unread and c.unread>0,true,true));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      local meta=k:make(UE.UVerticalBox,'OnlineConversationMeta'..i);meta:AddChild(k:text(L.date(c.lastMessage.createdAt),9,'OnlineConversationDate'..i,P.muted));if c.unread and c.unread>0 then meta:AddChild(k:text(tostring(math.min(c.unread,99)),11,'OnlineConversationUnread'..i,P.blue,true))end;row:AddChildToHorizontalBox(meta):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      local card=k:button('OnlineConversation'..i,k:panel('OnlineConversationSurface'..i,row,9,c.unread and c.unread>0 and P.message or P.white),function()action('conversation',c.participant.id)end);card:SetIsEnabled(not model.busy);content:AddChild(card);k:line(content,'OnlineConversationRule'..i,P.line)
     end
@@ -214,7 +216,7 @@ function M.create(kit,action)
      if not message.outgoing then Kit.fill(row:AddChildToHorizontalBox(k:box('OnlineMessageTrail'..i)))end
      content:AddChild(row);gap(6)
     end
-    gap(10);input('message',L.t('Ваше сообщение'),'',68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8);button(content,L.t('Отправить геолокацию'),'SendLocation','location');gap(8)
+    gap(10);input('message',L.t('Ваше сообщение'),model:messageDraft(model.conversationId),68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8);button(content,L.t('Отправить геолокацию'),'SendLocation','location');gap(8)
    elseif model.mode=='create'then
    gap(8);local draft=model.draft
    if draft and draft.texture and draft.texture:IsValid()then

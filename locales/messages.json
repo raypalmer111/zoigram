@@ -1624,5 +1624,47 @@
     "The language follows your game settings automatically.",
     "La langue suit automatiquement celle du jeu.",
     "게임 언어 설정에 따라 자동으로 변경돼요."
+  ],
+  [
+    "Все",
+    "All",
+    "Tous",
+    "전체"
+  ],
+  [
+    "Непрочитанные",
+    "Unread",
+    "Non lus",
+    "읽지 않음"
+  ],
+  [
+    "Всё прочитано",
+    "All caught up",
+    "Tout est lu",
+    "모두 읽었어요"
+  ],
+  [
+    "Новые сообщения появятся здесь.",
+    "New messages will appear here.",
+    "Les nouveaux messages apparaîtront ici.",
+    "새 메시지가 여기에 표시돼요."
+  ],
+  [
+    "Черновик: {text}",
+    "Draft: {text}",
+    "Brouillon : {text}",
+    "임시 저장: {text}"
+  ],
+  [
+    "Не удалось сохранить черновик сообщения.",
+    "Could not save your message draft.",
+    "Impossible d’enregistrer le brouillon.",
+    "메시지 초안을 저장하지 못했어요."
+  ],
+  [
+    "Неверный фильтр диалогов.",
+    "Invalid conversation filter.",
+    "Filtre de conversations invalide.",
+    "대화 필터가 올바르지 않습니다."
   ]
 ]

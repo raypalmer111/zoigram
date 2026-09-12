@@ -1,6 +1,7 @@
 local L=require('B1.Localization')
 local Transport=require('B1.Online.Transport')
 local Photo=require('B1.Game.PhotoFlow')
+local MessageDrafts=require('B1.Data.MessageDrafts')
 local M={};M.__index=M
 function M.new(app)
  local config=Transport.read('config')or{};L.set('auto')
@@ -98,7 +99,7 @@ function M:notificationsPage(more)
  end)
 end
 function M:conversationsPage(more)
- self.mode='conversations';local path='/api/conversations';if more and self.conversationCursor then path=path..'?before='..self.conversationCursor end
+ self.mode='conversations';local path='/api/conversations?filter='..(self.conversationFilter or'all');if more and self.conversationCursor then path=path..'&before='..self.conversationCursor end
  self:request('GET',path,nil,function(r)
   if more then for _,c in ipairs(r.conversations or{})do self.conversations[#self.conversations+1]=c end else self.conversations=r.conversations or{}end
   self.conversationCursor=r.nextCursor;self.unreadMessages=r.unread or 0
@@ -168,7 +169,19 @@ function M:openLogin()
  if not opened then self.notice='Скопируйте ссылку ниже и откройте её в браузере.'end
  self:draw()
 end
+function M:messageDrafts()
+ if not self.me then return nil end
+ if not self.messageDraftStore or self.messageDraftStore.server~=self.server or self.messageDraftStore.accountId~=self.me.id then self.messageDraftStore=MessageDrafts.new(Transport,self.server,self.me.id)end
+ return self.messageDraftStore
+end
+function M:messageDraft(peerId)local store=self:messageDrafts();return store and store:get(peerId)or''end
+function M:saveMessageDraft()
+ if self.mode~='messages'or not self.conversationId or not self.me then return true end
+ local ok=self:messageDrafts():set(self.conversationId,self:input('message'))
+ if not ok then self.error='Не удалось сохранить черновик сообщения.'end;return ok
+end
 function M:saveDraft()
+ if not self:saveMessageDraft()then return false end
  if self.mode=='create'and self.draftAuthor then
   local value=self:input('caption');local d=Photo.getDraft(self.draftAuthor)
   if d or value~=''then d=d or Photo.draft(self.draftAuthor);d.caption=value end
@@ -190,17 +203,18 @@ function M:accountAccess()
  end)
 end
 function M:snapshot()
- return {scrollOffset=self.app.view.page and self.app.view.page.scroll:GetScrollOffset()or 0,searchQuery=self.searchQuery,searchResults=self.searchResults,searchCursor=self.searchCursor,searchPerformed=self.searchPerformed,mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
+ return {conversationFilter=self.conversationFilter,scrollOffset=self.app.view.page and self.app.view.page.scroll:GetScrollOffset()or 0,searchQuery=self.searchQuery,searchResults=self.searchResults,searchCursor=self.searchCursor,searchPerformed=self.searchPerformed,mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
 end
 function M:push()
  self.history=self.history or{};self.history[#self.history+1]=self:snapshot();if #self.history>8 then table.remove(self.history,1)end;self.postMenu=nil;self.profileMenu=nil
 end
 function M:restore(state,refresh)
- for _,key in ipairs({'searchQuery','searchResults','searchCursor','searchPerformed','mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
+ for _,key in ipairs({'conversationFilter','searchQuery','searchResults','searchCursor','searchPerformed','mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
  self.restoreScroll=state.scrollOffset;self.postMenu=nil;self.deleteTarget=nil;self.profileMenu=nil
  if refresh and self.mode=='feed'then self:feed(self.scope)
  elseif refresh and self.mode=='profile'then self:profile(self.profileId)
  elseif refresh and self.mode=='saved'then self:saved(false)
+ elseif self.mode=='conversations'then self.conversations={};self.conversationCursor=nil;self:conversationsPage(false)
  else self:draw()end
 end
 function M:saveConfig()
@@ -208,7 +222,7 @@ function M:saveConfig()
 end
 function M:act(action,value)
  if self.transport.pending then return end
- self:saveDraft();self.error=nil;self.notice=nil
+ if self:saveDraft()==false then self:draw();return true end;self.error=nil;self.notice=nil
  if action=='language'then L.set(value);self:saveConfig();self:draw()
  elseif action=='back'then self:back()
  elseif action=='connect'then self:connect(self:input('server'))
@@ -248,13 +262,20 @@ function M:act(action,value)
  elseif action=='moreNotifications'then self:notificationsPage(true)
  elseif action=='notification'then if value.postId then self:request('GET','/api/posts/'..value.postId,nil,function(r)self:push();self.comments={};self.commentCursor=nil;self:discussion(r.post)end)else self:act('profile',value.actor.id)end
  elseif action=='conversations'then if self.mode~='conversations'then self:push()end;self.conversations={};self.conversationCursor=nil;self:conversationsPage(false)
+ elseif action=='conversationFilter'then self.conversationFilter=value=='unread'and'unread'or'all';self.conversations={};self.conversationCursor=nil;self:conversationsPage(false)
  elseif action=='moreConversations'then self:conversationsPage(true)
  elseif action=='conversation'then self:push();self.messages={};self.messageCursor=nil;self:thread(value,false)
  elseif action=='message'then local id=value or(self.selectedProfile and self.selectedProfile.id);if id then self:push();self.messages={};self.messageCursor=nil;self:thread(id,false)end
  elseif action=='moreMessages'then self:thread(self.conversationId,true)
  elseif action=='sendMessage'then
-  local value=self:input('message');if self.messageText~=value then self.messageKey=Transport.nonce();self.messageText=value end
-  self:request('POST','/api/conversations/'..self.conversationId..'/messages',{requestId=self.messageKey or Transport.nonce(),text=value},function(r)self.messages[#self.messages+1]=r.message;self.app.view:clearOnlineInput('message');self.messageText=nil;self.messageKey=nil;self.scrollMessages=true;self:draw()end)
+  local value=self:input('message');if value:match('^%s*$')then self.error='Заполните поле.';self:draw();return end
+   local peerId=self.conversationId;local store=self:messageDrafts();if not store:set(peerId,value)then self.error='Не удалось сохранить черновик сообщения.';self:draw();return end
+   local requestId=store:requestId(peerId,Transport.nonce);if not requestId then self.error='Не удалось сохранить черновик сообщения.';self:draw();return end
+   self:request('POST','/api/conversations/'..peerId..'/messages',{requestId=requestId,text=value},function(r)
+    local exists=false;for _,message in ipairs(self.messages)do if message.id==r.message.id then exists=true end end;if not exists then self.messages[#self.messages+1]=r.message end
+    if self.conversationId==peerId and self:input('message')==value then store:set(peerId,'');self.app.view:clearOnlineInput('message')else self:saveMessageDraft()end
+    self.scrollMessages=true;self:draw()
+   end)
  elseif action=='me'then self.history={};self.tab='me';if self.me then self:profile(self.me.id)else self.mode='login';self:draw()end
  elseif action=='create'then self.history={};self.tab='create';self:create()
  elseif action=='profile'then if self.mode~='profile'or self.profileId~=value then self:push();self:profile(value)end
@@ -276,7 +297,7 @@ function M:act(action,value)
  elseif action=='removeAvatar'then self:request('DELETE','/api/me/avatar',nil,function()self.pendingAvatar=nil;self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.notice='Аватар удалён.'end)end)
  elseif action=='saveProfile'then self:request('PATCH','/api/me',{displayName=self:input('name'),bio=self:input('bio')},function(r)self.me=r.profile;table.remove(self.history);self:profile(r.profile.id)end)
  elseif action=='settings'then if self.mode~='setup'then self:push();self.mode='setup';self:draw()end
- elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
+ elseif action=='logout'then self:request('DELETE','/api/session',nil,function()local store=self:messageDrafts();if store then store:clear()end;self.messageDraftStore=nil;self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
  elseif action=='deletePost'then
   if not self.me or not value or value.author.id~=self.me.id then self.error='Можно удалить только свою публикацию.';self:draw();return end
   self:push();self.deleteTarget=value;self.mode='deletePost';self:draw()
@@ -304,7 +325,7 @@ function M:act(action,value)
 end
 function M:back()
  if self.transport.pending then return true end
- self:saveDraft();self.error=nil;self.notice=nil
+ if self:saveDraft()==false then self:draw();return true end;self.error=nil;self.notice=nil
  local previous=table.remove(self.history or{})
  if previous then self:restore(previous,false);return true end
  if self.mode~='feed'and self.me then self.tab='feed';self:feed(self.scope);return true end
@@ -312,6 +333,7 @@ function M:back()
 end
 function M:tick(dt)
  self.languageElapsed=(self.languageElapsed or 0)+(dt or 0);if self.languageElapsed>=2 then self.languageElapsed=0;if L.refresh()then self:draw()end end
+ self.draftElapsed=(self.draftElapsed or 0)+(dt or 0);if self.draftElapsed>=2 then self.draftElapsed=0;self:saveMessageDraft()end
  self.transport:tick(dt);self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
  if self.pendingAccount and self.me and self.elapsed>=3 and not self.transport.pending then
   self.elapsed=0;if os.time()*1000>self.pendingAccount.expiresAt then self.pendingAccount=nil else self:request('GET','/api/me',nil,function(r)self.me=r.profile;if (r.profile.accountRevision or 0)~=self.accountBefore then self.pendingAccount=nil;self.notice='Вход настроен. Сохраните резервный код в браузере.';self:draw()end end,nil,true,true)end
@@ -337,5 +359,5 @@ function M:tick(dt)
  end
  if self.me and not self.pendingLogin and self.activityElapsed>=20 and not self.transport.pending then self.activityElapsed=0;self:activity()end
 end
-function M:dispose()self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
+function M:dispose()self:saveMessageDraft();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
 return M
