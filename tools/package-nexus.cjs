@@ -29,22 +29,13 @@ function buildManual(destination,modId=defaultModId){
  write(destination,'README.txt',fs.readFileSync(path.join(root,publication+'/INSTALL.txt')));
  return {version,modId,files:walk(destination).map(file=>({path:path.relative(destination,file).replaceAll('\\','/'),sha256:digest(fs.readFileSync(file))})),runtimeFiles:records};
 }
-function zipDirectory(directory,zip){
- const quote=s=>"'"+s.replaceAll("'","''")+"'";
- // Standard Windows ZIP writer with POSIX entry names for cross-platform scanners.
- cp.execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',
-  '$ErrorActionPreference = "Stop"\nAdd-Type -AssemblyName System.IO.Compression.FileSystem\n'+
-  '$archive = [System.IO.Compression.ZipFile]::Open('+quote(zip)+', "Create")\n'+
-  'try { Get-ChildItem -LiteralPath '+quote(directory)+' -Recurse -File | Sort-Object FullName | ForEach-Object { '+
-  '$name = $_.FullName.Substring('+String(directory.length+1)+').Replace("\\", "/"); '+
-  '[System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $_.FullName, $name) | Out-Null } } finally { $archive.Dispose() }'],{windowsHide:true});
-}
+const {zipDirectory}=require('./zip-directory.cjs');
 function sourcePackage(destination){
  empty(destination);
  const fixed=['package.json','InzoiSocial/mod_manifest.json','InzoiSocial/InzoiSocial.uplugin','InzoiSocial/obsolete-files.json','InzoiSocial/assets/instagram-icon.png',
-  'tools/bundle-native.cjs','tools/package-nexus.cjs','tools/build-locales.cjs','tools/build-ui-glyphs.cjs','tools/Install-Native.ps1','locales/messages.json',
+  'tools/bundle-native.cjs','tools/package-nexus.cjs','tools/build-locales.cjs','tools/zip-directory.cjs','locales/messages.de.json','locales/messages.zh.json','tools/build-ui-glyphs.cjs','tools/Install-Native.ps1','locales/messages.json',
   publication+'/INSTALL.txt',publication+'/REVIEW.md',
-  'tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs',
+  'tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs','tests/zip-directory.test.cjs',
   'docs/ACCOUNTS.md','docs/ADMIN.md','server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
   'server/deploy/compose.yaml','server/deploy/Caddyfile','server/deploy/.env.example','server/deploy/preflight.cjs'];
  const dirs=['InzoiSocial/lua','server/src','server/admin','server/avatar','server/tools','server/test'];

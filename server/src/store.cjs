@@ -38,7 +38,23 @@ function openStore(filename){
  CREATE TABLE IF NOT EXISTS account_flows(token_hash TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('device','settings')),device_hash TEXT REFERENCES devices(secret_hash) ON DELETE CASCADE,session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS profile_verifications(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,verified INTEGER NOT NULL CHECK(verified IN (0,1)),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS post_like_bonuses(post_id INTEGER PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,amount INTEGER NOT NULL CHECK(amount BETWEEN 0 AND 1000000),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);
- PRAGMA user_version=6;`);
+ CREATE TABLE IF NOT EXISTS bookmarks(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,UNIQUE(profile_id,post_id));
+ CREATE INDEX IF NOT EXISTS bookmarks_profile ON bookmarks(profile_id,id DESC);`);
+ // Preserve existing notification IDs and read state while adding comment alerts.
+ if(!db.prepare('PRAGMA table_info(notifications)').all().some(c=>c.name==='comment_id'))transaction(db,()=>{
+  const sequence=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get()?.seq||0;
+  db.exec(`CREATE TABLE notifications_next(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,actor_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('like','follow','comment')),post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,read_at INTEGER,comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,CHECK((kind='like' AND post_id IS NOT NULL AND comment_id IS NULL) OR (kind='follow' AND post_id IS NULL AND comment_id IS NULL) OR (kind='comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL)));
+   INSERT INTO notifications_next(id,profile_id,actor_id,kind,post_id,created_at,read_at) SELECT id,profile_id,actor_id,kind,post_id,created_at,read_at FROM notifications;
+   DROP TABLE notifications;
+   ALTER TABLE notifications_next RENAME TO notifications;`);
+  if(db.prepare("SELECT 1 FROM sqlite_sequence WHERE name='notifications'").get())db.prepare("UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name='notifications'").run(sequence);
+  else db.prepare('INSERT INTO sqlite_sequence(name,seq) VALUES(?,?)').run('notifications',sequence);
+ });
+ db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS notifications_like ON notifications(profile_id,actor_id,post_id) WHERE kind='like';
+ CREATE UNIQUE INDEX IF NOT EXISTS notifications_follow ON notifications(profile_id,actor_id) WHERE kind='follow';
+ CREATE UNIQUE INDEX IF NOT EXISTS notifications_comment ON notifications(comment_id) WHERE kind='comment';
+ CREATE INDEX IF NOT EXISTS notifications_inbox ON notifications(profile_id,id DESC);
+ PRAGMA user_version=7;`);
  return db;
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}

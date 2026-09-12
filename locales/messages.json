@@ -1564,5 +1564,65 @@
     "Invalid search page.",
     "Page de recherche incorrecte.",
     "잘못된 검색 페이지입니다."
+  ],
+  [
+    "Неверная страница сохранённых публикаций.",
+    "Invalid saved posts page.",
+    "Page des publications enregistrées invalide.",
+    "저장한 게시물 페이지가 올바르지 않습니다."
+  ],
+  [
+    "Пока нет сохранённых публикаций",
+    "No saved posts yet",
+    "Aucune publication enregistrée",
+    "아직 저장한 게시물이 없어요"
+  ],
+  [
+    "Нажмите на закладку под фотографией, чтобы сохранить её для себя.",
+    "Tap the bookmark below a photo to save it privately.",
+    "Appuyez sur le signet sous une photo pour l’enregistrer en privé.",
+    "사진 아래의 북마크를 눌러 나만 볼 수 있게 저장하세요."
+  ],
+  [
+    "Убрать из сохранённого",
+    "Remove from saved",
+    "Retirer des enregistrements",
+    "저장 취소"
+  ],
+  [
+    "Сохранить публикацию",
+    "Save post",
+    "Enregistrer la publication",
+    "게시물 저장"
+  ],
+  [
+    "Сохранённые публикации",
+    "Saved posts",
+    "Publications enregistrées",
+    "저장한 게시물"
+  ],
+  [
+    "Лайки, комментарии и подписки появятся здесь.",
+    "Likes, comments and follows will appear here.",
+    "Les mentions J’aime, commentaires et abonnements apparaîtront ici.",
+    "좋아요, 댓글, 새 팔로워 알림이 여기에 표시돼요."
+  ],
+  [
+    "Новый комментарий от {name}",
+    "New comment from {name}",
+    "Nouveau commentaire de {name}",
+    "{name}님이 댓글을 남겼어요"
+  ],
+  [
+    "Отправить геолокацию",
+    "Send location",
+    "Envoyer une position",
+    "위치 보내기"
+  ],
+  [
+    "Язык меняется автоматически вместе с языком игры.",
+    "The language follows your game settings automatically.",
+    "La langue suit automatiquement celle du jeu.",
+    "게임 언어 설정에 따라 자동으로 변경돼요."
   ]
 ]

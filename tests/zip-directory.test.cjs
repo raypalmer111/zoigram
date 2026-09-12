@@ -1,0 +1,9 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),zlib=require('node:zlib');
+const {zipDirectory,crc32}=require('../tools/zip-directory.cjs');
+test('ZIP roundtrip preserves binary bytes, Unicode paths and empty files with valid CRC and directory offsets',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'zoigram-zip-'));t.after(()=>{assert(path.resolve(dir).startsWith(path.resolve(os.tmpdir())+path.sep+'zoigram-zip-'));fs.rmSync(dir,{recursive:true,force:true})});const root=path.join(dir,'source');fs.mkdirSync(path.join(root,'中文'),{recursive:true});
+ const files={'中文/头像.png':Buffer.from([0,255,7,128]),'README.txt':Buffer.from('Grüße 한국어'),'.keep':Buffer.alloc(0)};for(const [p,b]of Object.entries(files))fs.writeFileSync(path.join(root,p),b);
+ const zip=path.join(dir,'release.zip');zipDirectory(root,zip);const bytes=fs.readFileSync(zip),end=bytes.length-22;assert.equal(bytes.readUInt32LE(end),0x06054b50);assert.equal(bytes.readUInt16LE(end+10),3);let cursor=bytes.readUInt32LE(end+16);assert.equal(cursor+bytes.readUInt32LE(end+12),end);
+ const names=[];for(let i=0;i<3;i++){assert.equal(bytes.readUInt32LE(cursor),0x02014b50);const n=bytes.readUInt16LE(cursor+28),name=bytes.subarray(cursor+46,cursor+46+n).toString('utf8'),offset=bytes.readUInt32LE(cursor+42),length=bytes.readUInt32LE(cursor+20);assert.equal(bytes.readUInt32LE(offset),0x04034b50);assert.equal(bytes.readUInt16LE(offset+6),0x800);const data=zlib.inflateRawSync(bytes.subarray(offset+30+n,offset+30+n+length));assert.deepEqual(data,files[name]);assert.equal(bytes.readUInt32LE(cursor+16),crc32(data));names.push(name);cursor+=46+n}assert.deepEqual(names.sort(),Object.keys(files).sort());assert.throws(()=>zipDirectory(root,path.join(root,'nested.zip')),/inside/);assert.throws(()=>zipDirectory(root,zip),/EEXIST/);
+});

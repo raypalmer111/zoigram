@@ -4,7 +4,7 @@ const {createApp}=require('../src/app.cjs'),I18n=require('../src/i18n.cjs'),{ide
 async function fixture(t,options={}){const app=createApp({database:':memory:',origin:'https://zoigram.example',...options});await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>app.close());return {app,request:(p,options={})=>fetch('http://127.0.0.1:'+app.server.address().port+p,{redirect:'manual',...options})}}
 test('language negotiation handles regional tags, priorities, exclusions and fallback',()=>{
  assert.equal(I18n.normalize('ko-KR'),'ko');assert.equal(I18n.normalize('fr_CA'),'fr');
- assert.equal(I18n.negotiate('de-DE, fr-CA;q=0.8, en;q=0.5'),'fr');assert.equal(I18n.negotiate('ko;q=0,ru;q=.6,en;q=.9'),'en');assert.equal(I18n.negotiate('de,fr;q=invalid'),'en');
+ assert.equal(I18n.negotiate('de-DE, fr-CA;q=0.8, en;q=0.5'),'de');assert.equal(I18n.negotiate('ko;q=0,ru;q=.6,en;q=.9'),'en');assert.equal(I18n.negotiate('es,fr;q=invalid'),'en');
  assert.equal(I18n.t('ko','Код: {code}',{code:'ABC123'}),'코드: ABC123');assert.equal(I18n.t('xx','Профиль'),'Profile');
 });
 test('concurrent API requests use their own language and never translate player content',async t=>{
@@ -17,7 +17,7 @@ test('concurrent API requests use their own language and never translate player 
   const feed=await(await request('/api/feed',{headers:{...headers,...auth}})).json();assert.equal(feed.posts[0].caption,'Профиль 한국어 Français 🌆');
   const invalid=await request('/api/me',{method:'PATCH',headers:{...headers,...auth,'Content-Type':'application/json'},body:JSON.stringify({username:'rename',displayName:'name'})});assert.equal(invalid.status,403);assert.equal((await invalid.json()).error,I18n.t(language,'ID аккаунта закреплён. Изменить его может только модератор.'));
  }));
- const unsupported=await request('/api/me',{headers:{'Accept-Language':'de-DE'}});assert.equal((await unsupported.json()).error,'Sign in to Zoigram.');
+ const unsupported=await request('/api/me',{headers:{'Accept-Language':'es-ES'}});assert.equal((await unsupported.json()).error,'Sign in to Zoigram.');
 });
 test('password forms and errors use English even when game links, cookies and browser headers request another language',async t=>{
  const {request}=await fixture(t);

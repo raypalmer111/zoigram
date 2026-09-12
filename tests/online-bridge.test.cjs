@@ -47,3 +47,8 @@ test('language follows each job and local errors are translated without altering
 });
 
 test('search and caption editing cross the bridge with unchanged queries and optimistic concurrency data',async()=>{const f=await fixture({session});const path='/api/profiles/search?q=%40%D0%9C%D0%B8%D0%BD%D0%B0&after=11111111-1111-4111-8111-111111111111';assert.equal((await f.run({path})).status,200);assert(f.calls.at(-1).url.endsWith(path));const body={caption:'New 🌆',expectedCaption:'Before'};assert.equal((await f.run({method:'PATCH',path:'/api/posts/12',body})).status,200);assert.deepEqual(JSON.parse(f.calls.at(-1).body),body);for(const path of ['/api/profiles/search/../../me','/api/profiles/search?q=x#y','/api/profiles/search?q=x\\evil'])assert.equal((await f.run({path})).status,0);});
+
+test('bookmarks cross the bridge with comment capability and Chinese/German request locales',async()=>{
+ const f=await fixture({session});for(const [method,path]of [['GET','/api/saved'],['GET','/api/saved?before=14'],['PUT','/api/posts/3/save'],['DELETE','/api/posts/3/save']]){const r=await f.run({method,path,language:'zh'});assert.equal(r.status,200);assert.equal(f.calls.at(-1).headers['X-Zoigram-Features'],'comment-notifications');assert.equal(f.calls.at(-1).headers['Accept-Language'],'zh')}
+ const denied=await f.run({server:'https://other.example',language:'de'});assert.equal(denied.body.error,'Melde dich bei Zoigram an.');const n=f.calls.length;for(const path of ['/api/saved?profile=other','/api/posts/3/save/../../me'])assert.equal((await f.run({path})).status,0);assert.equal(f.calls.length,n);
+});

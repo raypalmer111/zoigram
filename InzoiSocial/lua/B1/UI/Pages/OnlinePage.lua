@@ -107,7 +107,8 @@ function M.create(kit,action)
   end
   local function posts(items)
    if #items==0 then
-    if model.mode=='profile'then empty(L.t('История в кадрах'),L.t('Здесь появятся опубликованные фотографии.'))
+    if model.mode=='saved'then empty(L.t('Пока нет сохранённых публикаций'),L.t('Нажмите на закладку под фотографией, чтобы сохранить её для себя.'))
+    elseif model.mode=='profile'then empty(L.t('История в кадрах'),L.t('Здесь появятся опубликованные фотографии.'))
     elseif model.scope=='following'then empty(L.t('Ваша лента подписок'),L.t('Подпишитесь на авторов, чьи кадры вам нравятся.'))
     else empty(L.t('Первый кадр — за вами'),L.t('Нажмите ＋, чтобы поделиться моментом из inZOI.'))end;return
    end
@@ -127,6 +128,7 @@ function M.create(kit,action)
      local heart=k:button('OnlineLike'..i,reaction,function()action('like',post)end,7);heart:SetIsEnabled(not model.busy);row:AddChild(heart)
      local comments=k:button('OnlineComments'..i,k:text(L.t('Комментарии · {count}',{count=post.comments}),11,'OnlineCommentsLabel'..i,P.muted),function()action('comments',post)end,8);comments:SetIsEnabled(not model.busy);row:AddChild(comments)
      Kit.fill(row:AddChildToHorizontalBox(k:box('OnlineActionSpace'..i)))
+     local save=k:button('OnlineSavePost'..i,k:glyph(post.saved and'bookmarkFilled'or'bookmark','OnlineBookmark'..i,18,post.saved and P.blue or P.ink),function()action('savePost',post)end,8);save:SetIsEnabled(not model.busy);pcall(function()save:SetToolTipText(L.t(post.saved and'Убрать из сохранённого'or'Сохранить публикацию'))end);row:AddChild(save)
      if model.me and post.author.id~=model.me.id then local report=k:button('OnlineReportPost'..i,k:glyph('flag','OnlineReportPostGlyph'..i,16,P.ink),function()action('report',{kind='post',id=post.id})end,8);report:SetIsEnabled(not model.busy);row:AddChild(report)end
     if post.caption~=''then column:AddChild(k:panel('OnlineCaptionPad'..i,k:text(post.caption,12,'OnlineCaption'..i,P.ink,false,true,true),10))end
     column:AddChild(k:panel('OnlineDatePad'..i,k:text(L.date(post.createdAt),9,'OnlineDate'..i,P.muted,false,true),10));k:gap(column,6,'OnlinePostGap'..i);k:line(column,'OnlinePostRule'..i,P.line)
@@ -157,6 +159,8 @@ function M.create(kit,action)
     local b=k:button('OnlineSearchResult'..i,row,function()action('profile',p.id)end,4);b:SetIsEnabled(not model.busy);content:AddChild(b);k:line(content,'OnlineSearchRule'..i)
    end
    if model.searchCursor then gap();button(content,L.t('Показать ещё'),'MoreSearch','moreSearch')end
+  elseif model.mode=='saved'then
+   posts(model.posts)
   elseif model.mode=='post'then
    if model.selectedPost then posts({model.selectedPost})end
   elseif model.mode=='editPost'then
@@ -178,10 +182,10 @@ function M.create(kit,action)
    else label(L.t('Загрузка профиля…'),13,'ProfileLoading',P.muted)end
    elseif model.mode=='notifications'then
     gap(4)
-    if #(model.notifications or{})==0 then empty(L.t('Пока нет уведомлений'),L.t('Лайки и подписки появятся здесь.'))end
+    if #(model.notifications or{})==0 then empty(L.t('Пока нет уведомлений'),L.t('Лайки, комментарии и подписки появятся здесь.'))end
     for i,n in ipairs(model.notifications or{})do
      local row=k:make(UE.UHorizontalBox,'OnlineNotificationRow'..i);row:AddChildToHorizontalBox(avatar(n.actor,42,'NotificationAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(nameLine(n.actor,9,'NotificationDate'..i,P.muted,'@'..n.actor.username..' · '..L.date(n.createdAt)));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or n.kind=='comment'and L.t('Новый комментарий от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(nameLine(n.actor,9,'NotificationDate'..i,P.muted,'@'..n.actor.username..' · '..L.date(n.createdAt)));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      if not n.isRead then row:AddChildToHorizontalBox(k:text('●',12,'OnlineNotificationUnread'..i,P.accent,true)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)end
      local card=k:button('OnlineNotification'..i,k:panel('OnlineNotificationSurface'..i,row,9,n.isRead and P.white or P.blush),function()action('notification',n)end);card:SetIsEnabled(not model.busy);content:AddChild(card);k:line(content,'OnlineNotificationRule'..i,P.line)
     end
@@ -210,7 +214,7 @@ function M.create(kit,action)
      if not message.outgoing then Kit.fill(row:AddChildToHorizontalBox(k:box('OnlineMessageTrail'..i)))end
      content:AddChild(row);gap(6)
     end
-    gap(10);input('message',L.t('Ваше сообщение'),'',68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8)
+    gap(10);input('message',L.t('Ваше сообщение'),'',68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8);button(content,L.t('Отправить геолокацию'),'SendLocation','location');gap(8)
    elseif model.mode=='create'then
    gap(8);local draft=model.draft
    if draft and draft.texture and draft.texture:IsValid()then
@@ -249,9 +253,9 @@ function M.create(kit,action)
    end
    gap();label(L.t('ID аккаунта'),10,'AccountIdTitle',P.muted,true);gap(5);label('@'..model.me.username,16,'AccountId',P.ink,true);gap(5);label(L.t('Закреплён за аккаунтом. Изменение через модератора.'),11,'AccountIdHelp',P.muted);gap(20);input('name',L.t('Имя'),model.me.displayName);input('bio',L.t('О себе'),model.me.bio,90);button(content,L.t('Сохранить'),'SaveProfile','saveProfile',nil,P.accent,true)
   elseif model.mode=='setup'then
-   gap();if model.me then label('@'..model.me.username,17,'SettingsAccount',P.ink,true);gap();button(content,L.t('Мои подписки'),'FollowingList','following');gap(8);button(content,L.t('Заблокированные аккаунты'),'OpenBlocks','blocks');gap(24)else label(L.t('Ваше сообщество'),20,'SetupTitle',P.ink,true);gap()end
+   gap();if model.me then label('@'..model.me.username,17,'SettingsAccount',P.ink,true);gap();button(content,L.t('Сохранённые публикации'),'SavedPosts','saved');gap(8);button(content,L.t('Мои подписки'),'FollowingList','following');gap(8);button(content,L.t('Заблокированные аккаунты'),'OpenBlocks','blocks');gap(24)else label(L.t('Ваше сообщество'),20,'SetupTitle',P.ink,true);gap()end
    label(L.t('Язык'),13,'LanguageTitle',P.ink,true);gap(6)
-   for _,choice in ipairs(L.choices())do button(content,(L.preference==choice[1]and'● 'or'○ ')..choice[2],'Language_'..choice[1],'language',choice[1]);gap(4)end
+   label(L.t('Как в игре')..' · '..L.name(),13,'AutomaticLanguage',P.ink,true);gap(6);label(L.t('Язык меняется автоматически вместе с языком игры.'),11,'AutomaticLanguageHint',P.muted)
    label(L.t('Язык интерфейса Zoigram. Публикации и имена игроков не переводятся.'),10,'LanguageHelp',P.muted);gap(20)
    input('server',L.t('Адрес сервера Zoigram'),model.server,48);button(content,L.t('Подключиться'),'Connect','connect');gap(8)
    if model.info and model.info.environment=='local'then label(L.t('Локальное сообщество на этом компьютере.'),10,'LocalInfo',P.muted)end

@@ -2,8 +2,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {generate,languages}=require('../tools/build-locales.cjs');
 const rows=JSON.parse(fs.readFileSync('locales/messages.json','utf8')),keys=new Set(rows.map(r=>r[0]));
-test('all four complete catalogs have identical placeholders and shipped files are current',()=>{
- assert.equal(languages.length,4);assert(rows.length>170);
+test('all six complete catalogs have identical placeholders and shipped files are current',()=>{
+ assert.equal(languages.length,6);assert(rows.length>170);
  for(const [file,expected]of Object.entries(generate()))assert.equal(fs.readFileSync(file,'utf8'),expected,file+' is stale');
  const html=fs.readFileSync('InzoiSocial/ui/OnlineBridge/index.html','utf8');assert(html.indexOf('locales.js')<html.indexOf('app.js'));
 });

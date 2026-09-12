@@ -20,10 +20,13 @@ function M.t(key,values)
  return(message:gsub('{([%w_]+)}',function(name)return values and values[name]~=nil and tostring(values[name])or'{'..name..'}'end))
 end
 function M.date(milliseconds)
- local formats={ru='%d.%m.%Y',en='%m/%d/%Y',fr='%d/%m/%Y',ko='%Y.%m.%d'}
- return os.date(formats[M.language],math.floor(milliseconds/1000))
+ local formats={ru='%d.%m.%Y',en='%m/%d/%Y',fr='%d/%m/%Y',ko='%Y.%m.%d',de='%d.%m.%Y',zh='%Y/%m/%d'}
+ return os.date(formats[M.language]or formats.en,math.floor(milliseconds/1000))
+end
+function M.name()
+ local names={ru='Русский',en='English',fr='Français',ko='한국어',de='Deutsch',zh='简体中文'};return names[M.language]or'English'
 end
 function M.choices()
- return {{'auto',M.t('Как в игре')},{'ru','Русский'},{'en','English'},{'fr','Français'},{'ko','한국어'}}
+ return {{'auto',M.t('Как в игре')},{'ru','Русский'},{'en','English'},{'fr','Français'},{'ko','한국어'},{'de','Deutsch'},{'zh','简体中文'}}
 end
 return M

@@ -3,7 +3,7 @@ local Transport=require('B1.Online.Transport')
 local Photo=require('B1.Game.PhotoFlow')
 local M={};M.__index=M
 function M.new(app)
- local config=Transport.read('config')or{};L.set(config.language)
+ local config=Transport.read('config')or{};L.set('auto')
  return setmetatable({app=app,transport=Transport.new(),server=Transport.server(config.server)or'https://vps-24654da6.vps.ovh.net',mode='setup',scope='all',posts={},comments={},notifications={},conversations={},messages={},history={},tab='feed',revision=0,elapsed=0,activityElapsed=20,unreadNotifications=0,unreadMessages=0},M)
 end
 function M:draw()
@@ -57,6 +57,11 @@ function M:feed(scope,more)
   if more then for _,post in ipairs(r.posts or{})do self.posts[#self.posts+1]=post end else self.posts=r.posts or{}end
   self.cursor=r.nextCursor
  end)
+end
+function M:saved(more)
+ if not self.me then return end;self.mode='saved';self.postMenu=nil
+ local path='/api/saved';if more and self.cursor then path=path..'?before='..self.cursor end
+ self:request('GET',path,nil,function(r)if more then for _,p in ipairs(r.posts or{})do self.posts[#self.posts+1]=p end else self.posts=r.posts or{}end;self.cursor=r.nextCursor end)
 end
 function M:search(more)
  self.mode='search'
@@ -195,6 +200,7 @@ function M:restore(state,refresh)
  self.restoreScroll=state.scrollOffset;self.postMenu=nil;self.deleteTarget=nil;self.profileMenu=nil
  if refresh and self.mode=='feed'then self:feed(self.scope)
  elseif refresh and self.mode=='profile'then self:profile(self.profileId)
+ elseif refresh and self.mode=='saved'then self:saved(false)
  else self:draw()end
 end
 function M:saveConfig()
@@ -214,6 +220,14 @@ function M:act(action,value)
  elseif action=='openLogin'then self:openLogin()
  elseif action=='cancelLogin'then self.pendingLogin=nil;self:draw()
  elseif action=='feed'then self.history={};self.tab='feed';self.postMenu=nil;self:feed(self.scope)
+ elseif action=='saved'then self:push();self.posts={};self.cursor=nil;self:saved(false)
+ elseif action=='savePost'then self:request(value.saved and'DELETE'or'PUT','/api/posts/'..value.id..'/save',{},function(r)
+  self:replacePost(r.post);if not r.post.saved then
+   local function remove(state)if state.mode=='saved'then for i=#(state.posts or{}),1,-1 do if state.posts[i].id==r.post.id then table.remove(state.posts,i)end end end end
+   remove(self);for _,state in ipairs(self.history or{})do remove(state)end
+  end
+ end)
+ elseif action=='location'then self.notice='Coming soon';self:draw()
  elseif action=='search'then self.history={};self.tab='search';self.mode='search';self:draw()
  elseif action=='runSearch'then self:search(false)
  elseif action=='moreSearch'then self:search(true)
@@ -244,7 +258,7 @@ function M:act(action,value)
  elseif action=='me'then self.history={};self.tab='me';if self.me then self:profile(self.me.id)else self.mode='login';self:draw()end
  elseif action=='create'then self.history={};self.tab='create';self:create()
  elseif action=='profile'then if self.mode~='profile'or self.profileId~=value then self:push();self:profile(value)end
- elseif action=='more'then if self.mode=='profile'then self:profile(self.profileId,true)else self:feed(self.scope,true)end
+ elseif action=='more'then if self.mode=='profile'then self:profile(self.profileId,true)elseif self.mode=='saved'then self:saved(true)else self:feed(self.scope,true)end
  elseif action=='camera'then self:camera()
  elseif action=='publish'then self:publish()
  elseif action=='postMenu'then self.postMenu=self.postMenu~=value.id and value.id or nil;self:draw()
