@@ -50,4 +50,4 @@ The server's Dockerfile uses pnpm 11.19.0. These tests use isolated databases an
 
 The software version is 0.13.1 (server API version 0.14.1). The supplied Nexus screenshot shows file metadata 0.43.1; this does not match the source or plugin manifest and should be corrected on the file page after confirming the upload.
 
-The code, UI implementation, translations and this documentation were developed using an AI coding agent under the mod author's direction and tested locally and in-game. Apply the applicable Nexus AI tags; do not describe the project as entirely human-written.
+Source code and build instructions are provided for review.

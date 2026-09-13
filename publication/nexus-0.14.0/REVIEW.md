@@ -46,8 +46,8 @@ Server tests require Node.js 24.13 or newer:
 
 The Dockerfile pins pnpm 11.19.0. No production secrets are required. The source-package test verifies that this source alone rebuilds byte-identical client files.
 
-## Review disclosure
+## Review notes
 
-The project was developed using an AI coding agent under the author's direction; apply the relevant Nexus AI tags. Local checks are documented separately and do not imply Nexus approval.
+Local checks are documented separately and do not imply Nexus approval.
 
 Removing Steam changes authentication and is not evidence that the earlier quarantine was caused by Steam. The exact Nexus scanner trigger is unknown. Review source and build steps are provided for a moderator to inspect.

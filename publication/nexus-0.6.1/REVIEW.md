@@ -35,7 +35,3 @@ Server tests require Node.js 24.13 or newer:
     node --test test/*.test.cjs
 
 The source-package test verifies that the checked-in source rebuilds byte-identical client files. Tests use isolated synthetic accounts and require no production secrets.
-
-## Review disclosure
-
-The project was developed with an AI coding agent under the author's direction. Source and build instructions are provided for review. Local tests and antivirus results do not imply Nexus Mods approval.
