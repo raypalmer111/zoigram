@@ -15,7 +15,7 @@ function createApp(options={}){
  db.function('zoigram_fold',{deterministic:true},value=>String(value||'').normalize('NFKC').toLowerCase());
  const local=['127.0.0.1','localhost','[::1]'].includes(new URL(origin).hostname);
  if(!local&&!origin.startsWith('https://'))throw Error('Public origin requires HTTPS');
- const budget=options.storageBytes||10*1024*1024*1024,limits=new Map(),gate={active:0};
+ const budget=options.storageBytes||10*1024*1024*1024,limits=new Map(),transport=require('./upload-transport.cjs').createUploadTransport({Problem,options:options.uploadTransport}),gate=transport.gate;
  function limit(bucket,max,ms=60000){const t=now();let r=limits.get(bucket);if(!r||r.until<=t){r={count:0,until:t+ms};limits.set(bucket,r)}if(++r.count>max)fail(429,'Слишком много запросов. Подождите немного.');if(limits.size>20000){for(const [k,v]of limits)if(v.until<=t)limits.delete(k);if(limits.size>20000)fail(503,'Сервис занят. Попробуйте позже.')}}
  function blocked(a,b){return !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a,b,b,a)}
  function profile(id,viewer){
@@ -31,15 +31,15 @@ function createApp(options={}){
  function unreadMessages(uid){return db.prepare(`SELECT COUNT(*) n FROM direct_messages m JOIN profiles a ON a.id=m.sender_id WHERE m.recipient_id=? AND m.read_at IS NULL AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=m.sender_id) OR (b.blocker_id=m.sender_id AND b.blocked_id=?))`).get(uid,uid,uid).n}
  function notificationDto(n,uid){return {id:n.id,kind:n.kind,actor:profile(n.actor_id,uid),postId:n.post_id||null,createdAt:n.created_at,isRead:n.read_at!==null}}
  function messageDto(m,uid){return {id:m.id,text:m.text,createdAt:m.created_at,outgoing:m.sender_id===uid,isRead:m.sender_id===uid||m.read_at!==null}}
- function send(res,status,body,type='application/json'){if(type==='application/json'&&res.zoigramSession)avatars.decorate(body,res.zoigramSession);res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store'});res.end(type==='application/json'?JSON.stringify(body):body)}
- async function json(req,max=65536){if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']||''))fail(415,'Ожидается JSON.');if(Number(req.headers['content-length']||0)>max)fail(413,'Слишком большой файл.');let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>max)fail(413,'Слишком большой файл.');chunks.push(chunk)}try{const value=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value}catch{fail(400,'Не удалось прочитать запрос.')}}
+ function send(res,status,body,type='application/json'){if(res.destroyed||res.writableEnded)return;if(type==='application/json'&&res.zoigramSession)avatars.decorate(body,res.zoigramSession);res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store'});res.end(type==='application/json'?JSON.stringify(body):body)}
+ const json=transport.json;
  function cleanExpired(){db.prepare('DELETE FROM sessions WHERE expires_at<?').run(now());db.prepare('DELETE FROM logins WHERE expires_at<?').run(now());db.prepare('DELETE FROM devices WHERE expires_at<?').run(now());db.prepare('DELETE FROM nonces WHERE expires_at<?').run(now());db.prepare('DELETE FROM admin_sessions WHERE expires_at<?').run(now());db.prepare('DELETE FROM admin_logins WHERE expires_at<?').run(now());for(const table of ['account_links','account_flows'])db.prepare('DELETE FROM '+table+' WHERE expires_at<?').run(now());}
  const accounts=require('./accounts.cjs').createAccounts({db,origin,secret,fail,limit,json,send,authorize});
  const operations=require('./operations.cjs').createOperations({db,budget,gate,dataDirectory:options.dataDirectory,backupDirectory:options.backupDirectory});
  const announcements=require('./announcements.cjs').createAnnouncements({db,fail});
  const admin=require('./admin.cjs').createAdmin({db,origin,secret,operations,announcements,zoimeetMonitor:options.zoimeetMonitor,ownerSteamId:options.ownerSteamId||'',ownerProfileId:options.ownerProfileId||'',accounts,storageBytes:budget,send,json,limit,onError:options.onError});
  const avatars=require('./avatars.cjs').createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize});
- const uploads=require('./uploads.cjs').createUploads({db,budget,fail,json,send,key,text,limit,gate,postDto,visiblePost});
+ const uploads=require('./uploads.cjs').createUploads({db,budget,fail,json,send,key,text,limit,transport,postDto,visiblePost});
  const clean=()=>{cleanExpired();uploads.clean();operations.clean()};clean();const cleaner=setInterval(clean,300000);cleaner.unref();
  async function handler(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
@@ -125,14 +125,14 @@ function createApp(options={}){
        const requestPost=p.match(/^\/api\/posts\/request\/([a-zA-Z0-9_-]{8,100})$/);
     if(method==='GET'&&requestPost){const row=db.prepare('SELECT id FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestPost[1]);return send(res,200,{found:!!row,...(row?{post:postDto(visiblePost(row.id,uid),s)}:{})})}
     if(method==='POST'&&p==='/api/posts'){
-     limit('upload:'+uid,30,3600000);if(gate.active>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');gate.active++;
+     limit('upload:'+uid,30,3600000);const lease=transport.admit(req,res);
      try{
       const b=await json(req,Albums.MAX_BODY),requestId=key(b.requestId),caption=text(b.caption||'',2200),{inputs,digest}=Albums.decode(b,caption,fail);
-      req.zoigramImageBytes=inputs.reduce((n,p)=>n+p.length,0);
+      req.zoigramImageBytes=inputs.reduce((n,p)=>n+p.length,0);delete b.imageBase64;delete b.imagesBase64;
       const previous=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);
       if(previous){if(previous.payload_hash!==digest)fail(409,'Этот запрос уже использован для другого поста.');return send(res,200,{post:postDto(visiblePost(previous.id,uid),s),repeated:true})}
       if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');
-      const photos=await Albums.convert(inputs,fail),bytes=photos.reduce((n,p)=>n+p.bytes,0),cover=photos[0];
+      await lease.process();const photos=await Albums.convert(inputs,fail);lease.check();const bytes=photos.reduce((n,p)=>n+p.bytes,0),cover=photos[0];
       const postId=transaction(db,()=>{
        if(db.prepare('SELECT 1 FROM upload_sessions WHERE profile_id=? AND request_id=? AND (post_id IS NOT NULL OR expires_at>?)').get(uid,requestId,now()))fail(409,'Этот запрос уже использован для другого поста.');
        const same=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);if(same){if(same.payload_hash!==digest)fail(409,'Идентификатор запроса уже использован.');return same.id}
@@ -141,7 +141,7 @@ function createApp(options={}){
        const id=Number(db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(uid,requestId,digest,caption,now(),cover.width,cover.height,cover.image,cover.thumbnail,bytes).lastInsertRowid);
        const insert=db.prepare('INSERT INTO post_photos VALUES(?,?,?,?,?,?,?)');photos.slice(1).forEach((p,i)=>insert.run(id,i+1,p.width,p.height,p.image,p.thumbnail,p.bytes));return id;
       });return send(res,201,{post:postDto(visiblePost(postId,uid),s)});
-     }finally{gate.active--}
+     }finally{lease.release()}
     }
 const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
    if(postRoute){const id=Number(postRoute[1]),action=postRoute[2],post=visiblePost(id,uid);
@@ -181,7 +181,7 @@ const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
     limit('report:'+uid,10,3600000);const b=await json(req),reason=text(b.reason||'',500,true),kind=b.kind,target=String(b.targetId);if(!['post','comment','profile'].includes(kind))fail(400,'Неверный тип жалобы.');if(kind==='post')visiblePost(Number(target),uid);if(kind==='profile')profile(target,uid);if(kind==='comment'){const c=db.prepare('SELECT post_id FROM comments WHERE id=?').get(Number(target));if(!c)fail(404,'Комментарий не найден.');visiblePost(c.post_id,uid)}db.prepare('INSERT OR IGNORE INTO reports(profile_id,kind,target_id,reason,created_at) VALUES(?,?,?,?,?)').run(uid,kind,target,reason,now());return send(res,201,{ok:true});
    }
    fail(404,'Действие не найдено.');
-  }catch(e){const status=e.status||500;const errorId=operations.capture(req,res,u,status);if(status===429)res.setHeader('Retry-After','60');if(!e.status&&options.onError)options.onError(e);if(!res.headersSent){const key=status===500?'Ошибка сервера. Попробуйте позже.':e.message;const error=I18n.t(language,key);if(u.pathname.startsWith('/api/'))send(res,status,{error,messageKey:key,...(errorId?{errorId}:{})});else send(res,status,page('Zoigram','<p>'+escape(error)+'</p>',language),'text/html')}else res.end()}
+  }catch(e){const status=e.status||500;const errorId=operations.capture(req,res,u,status,e);if(!e.status&&options.onError)options.onError(e);if(res.destroyed||res.writableEnded)return;if(!res.headersSent){if(status===429)res.setHeader('Retry-After','60');else if(status===503&&Number.isInteger(e.retryAfter)&&e.retryAfter>0)res.setHeader('Retry-After',String(e.retryAfter));if(req.zoigramCloseConnection){res.shouldKeepAlive=false;res.setHeader('Connection','close');}}if(!res.headersSent){const key=status===500?'Ошибка сервера. Попробуйте позже.':e.message;const error=I18n.t(language,key);if(u.pathname.startsWith('/api/'))send(res,status,{error,messageKey:key,...(errorId?{errorId}:{})});else send(res,status,page('Zoigram','<p>'+escape(error)+'</p>',language),'text/html')}else res.end()}
  }
  const server=http.createServer(handler);server.requestTimeout=120000;server.headersTimeout=15000;server.keepAliveTimeout=5000;
  let closing;

@@ -56,13 +56,13 @@ test('staged quota is atomic and legacy publications cannot consume reserved med
  f.app.db.prepare('DELETE FROM posts WHERE id=?').run(seed);assert.equal((await f.put(id,1)).status,200);assert.equal((await f.done(id)).status,200);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,0);
  const g=await fixture(t,{storageBytes:photo.bytes*3});const small=crypto.randomUUID();await g.start(1,small);assert.equal((await g.put(small,0)).status,507);assert.equal(g.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,0);
 });
-test('the shared photo gate bounds concurrent request bodies and recovers after aborted uploads',async t=>{
+test('stalled resumable bodies leave capacity for another photo and recover after aborted uploads',async t=>{
  const http=require('node:http'),f=await fixture(t),id=crypto.randomUUID(),held=[];await f.start(3,id);
  async function hold(index){const route='/api/uploads/'+id+'/'+index;await new Promise(resolve=>{
   const incoming=req=>{if(req.url===route){f.app.server.off('request',incoming);resolve()}};f.app.server.on('request',incoming);
   const req=http.request({host:'127.0.0.1',port:f.app.server.address().port,path:route,method:'PUT',headers:{Authorization:'Bearer '+f.users[0].token,'Content-Type':'application/json','Content-Length':5000}});req.on('error',()=>{});req.on('response',res=>res.resume());held.push(req);req.write('{');
  })}
- try{await hold(0);await hold(1);assert.equal((await f.put(id,2)).status,503);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,0)}finally{held.forEach(req=>req.destroy())}
+ try{await hold(0);await hold(1);assert.equal((await f.put(id,2)).status,200);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,1)}finally{held.forEach(req=>req.destroy())}
  await new Promise(r=>setTimeout(r,30));assert.equal((await f.put(id,2)).status,200);
 });
 test('legacy and resumable uploads cannot claim the same pending request identifier',async t=>{
@@ -95,7 +95,7 @@ test('an old completion body cannot publish a cancelled and recreated upload wit
   client.on('error',reject);client.setTimeout(5000,()=>client.destroy(Error('Completion test timed out')));client.write('{');
  });
  try{
-  const oldRequest=await incoming;assert.equal((await f.call('GET','/api/uploads/'+id)).status,200);assert.equal(oldRequest.complete,false);assert(oldRequest.listenerCount('readable')>0,'the old handler is waiting for the remaining JSON body');
+  const oldRequest=await incoming;assert.equal((await f.call('GET','/api/uploads/'+id)).status,200);assert.equal(oldRequest.complete,false);assert(oldRequest.listenerCount('data')>0,'the old handler is waiting for the remaining JSON body');
   assert.equal((await f.call('DELETE','/api/uploads/'+id)).status,200);assert.equal((await f.start(1,id)).status,200);assert.equal((await f.put(id,0,f.photos[1])).status,200);
   client.end('}');assert.equal((await pending).status,409);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM posts').get().n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,1);
   const result=await f.done(id);assert.equal(result.status,200);assert.equal(result.body.post.width,104);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM posts').get().n,1);

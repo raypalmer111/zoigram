@@ -2,7 +2,7 @@
 const crypto=require('node:crypto');
 const {transaction,hash}=require('./store.cjs'),Albums=require('./albums.cjs');
 const MAX_INPUT=25*1024*1024,TTL=24*3600000;
-function createUploads({db,budget,fail,json,send,key,text,limit,gate,postDto,visiblePost,clock=Date.now}){
+function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDto,visiblePost,clock=Date.now}){
  const stagedLimit=Math.min(512*1024*1024,Math.floor(budget/4));
  const row=(uid,id)=>db.prepare('SELECT * FROM upload_sessions WHERE profile_id=? AND request_id=?').get(uid,id);
  function clean(){db.prepare('DELETE FROM upload_sessions WHERE post_id IS NULL AND expires_at<?').run(clock());}
@@ -37,24 +37,24 @@ function createUploads({db,budget,fail,json,send,key,text,limit,gate,postDto,vis
   if(m==='DELETE'&&!part){if(r.post_id)fail(409,'Публикация уже отправлена.');db.prepare('DELETE FROM upload_sessions WHERE profile_id=? AND request_id=?').run(uid,id);send(res,200,{ok:true});return true;}
   if(m==='PUT'&&/^[0-4]$/.test(part||'')){
    if(r.post_id)fail(409,'Публикация уже отправлена.');const index=Number(part);if(index>=r.photo_count)fail(400,'Неверный снимок.');
-   limit('upload-part:'+uid,120,3600000);if(gate.active>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');gate.active++;
+   limit('upload-part:'+uid,120,3600000);const lease=transport.admit(req,res);
    try{
-    const b=await json(req,Math.ceil(MAX_INPUT/3)*4+4096),value=b.imageBase64;
+    const b=await json(req,Math.ceil(MAX_INPUT/3)*4+4096);let value=b.imageBase64;delete b.imageBase64;
     if(typeof value!=='string')fail(400,'Не удалось прочитать фотографию.');
     if(value.length>Math.ceil(MAX_INPUT/3)*4)fail(413,'Фото должно быть не больше 25 МБ.');
     if(value.length%4||/[^A-Za-z0-9+/=]/.test(value))fail(400,'Не удалось прочитать фотографию.');
     const input=Buffer.from(value,'base64');req.zoigramImageBytes=input.length;
     if(input.length>MAX_INPUT)fail(413,'Фото должно быть не больше 25 МБ.');if(input.length<16||input.toString('base64')!==value)fail(400,'Не удалось прочитать фотографию.');
-    currentGeneration();const digest=hash(input),previous=db.prepare('SELECT digest FROM upload_parts WHERE profile_id=? AND request_id=? AND position=?').get(uid,id,index);
+    value=null;currentGeneration();const digest=hash(input),previous=db.prepare('SELECT digest FROM upload_parts WHERE profile_id=? AND request_id=? AND position=?').get(uid,id,index);
     if(previous){if(previous.digest!==digest)fail(409,'Снимок уже загружен с другим содержимым.');send(res,200,{ok:true,index,repeated:true});return true;}
-    const [photo]=await Albums.convert([input],fail);
+    await lease.process();const [photo]=await Albums.convert([input],fail);lease.check();
     transaction(db,()=>{
      const current=currentGeneration();if(current.post_id)fail(409,'Публикация уже отправлена.');if(index>=current.photo_count)fail(409,'Загрузка изменена. Повторите отправку.');
      const other=db.prepare('SELECT digest FROM upload_parts WHERE profile_id=? AND request_id=? AND position=?').get(uid,id,index);
      if(other){if(other.digest!==digest)fail(409,'Снимок уже загружен с другим содержимым.');return;}
      quota(uid,photo.bytes);db.prepare('INSERT INTO upload_parts VALUES(?,?,?,?,?,?,?,?,?,?)').run(uid,id,index,digest,input.length,photo.width,photo.height,photo.image,photo.thumbnail,photo.bytes);
     });send(res,200,{ok:true,index});return true;
-   }finally{gate.active--;}
+   }finally{lease.release();}
   }
   if(m==='POST'&&part==='complete'){
    limit('upload-complete:'+uid,60,3600000);await json(req,4096);

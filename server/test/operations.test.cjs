@@ -27,7 +27,7 @@ test('diagnostics accept only fixed codes and persist no submitted paths, secret
  assert.equal((await f.game('/api/diagnostics',raw,{'X-Zoigram-Version':'0.8.0'})).status,202);assert.equal((await f.game('/api/diagnostics',{...raw,code:secret})).status,400);
  assert.equal((await f.game('/api/diagnostics',{code:'photo_size',imageBytes:2**40},{'X-Zoigram-Version':secret})).status,202);
  assert.equal((await f.game('/api/uploads',{requestId:secret,count:6,caption:secret},{'X-Zoigram-Version':secret})).status,400);
- const rows=(await f.admin('/admin/api/errors')).body.items;assert.equal(rows.length,3);assert(!JSON.stringify(rows).includes(secret));assert(!JSON.stringify(rows).includes('C:/Users'));assert.equal(rows[0].source,'server');assert.equal(rows[0].route,'upload');assert.equal(rows[0].client_version,'unknown');assert.equal(rows[1].image_bytes,null);assert.equal(rows[2].image_bytes,9300000);assert.equal(rows[2].client_version,'0.8.0');assert.equal(rows[2].profile_id,f.player.id);
+ const rows=(await f.admin('/admin/api/errors')).body.items;assert.equal(rows.length,3);assert(!JSON.stringify(rows).includes(secret));assert(!JSON.stringify(rows).includes('C:/Users'));assert.equal(rows[0].source,'server');assert.equal(rows[0].route,'upload_resumable');assert.equal(rows[0].client_version,'unknown');assert.equal(rows[1].image_bytes,null);assert.equal(rows[2].image_bytes,9300000);assert.equal(rows[2].client_version,'0.8.0');assert.equal(rows[2].profile_id,f.player.id);
  const filtered=(await f.admin('/admin/api/errors?source=client')).body.items;assert.equal(filtered.length,2);assert(filtered.every(r=>r.source==='client'));
  const unauthenticated=await f.request('/api/diagnostics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(raw)});assert.equal(unauthenticated.status,401);
 });
@@ -62,4 +62,37 @@ test('announcement list is bounded, with the newest three active entries shown a
  for(let i=0;i<100;i++){const item=api.save(announcement({title:'Announcement '+i}), 'owner');first??=item;now++}
  assert.deepEqual(api.live().map(x=>x.title),['Announcement 99','Announcement 98','Announcement 97']);assert.equal(api.list().items.length,100);assert.throws(()=>api.save(announcement(),'owner'),{status:409});
  const revised=api.save(announcement({id:first.id,expectedRevision:1,title:'First announcement revised'}),'owner');assert.equal(revised.revision,2);assert.equal(api.live()[0].id,first.id);assert.equal(api.list().items.length,100);
+});
+
+test('upload connection failures use fixed non-500 codes, retain historical rows and identify protocol without guessing the client version',t=>{
+ const db=openStore(':memory:');t.after(()=>db.close());const now=Date.now();
+ db.prepare('INSERT INTO operational_errors(created_at,source,code,status,client_version,route) VALUES(?,?,?,?,?,?)').run(now,'server','server_error',500,'unknown','upload');
+ const before=db.prepare('SELECT * FROM operational_errors WHERE id=1').get();
+ const ops=createOperations({db,budget:100000,gate:{active:0},clock:()=>now});
+ const secret='never-persist-this-token',req=(method,version)=>({method,headers:{'x-zoigram-version':version},zoigramImageBytes:1234}),url=p=>new URL(p+'?token='+secret,'https://local');
+ ops.capture(req('POST'),{},url('/api/posts'),499,{code:'upload_aborted',message:secret,stack:secret});
+ ops.capture(req('PUT','0.8.0'),{},url('/api/uploads/requestid/0'),408,{code:'upload_timeout',message:secret});
+ ops.capture(req('PUT'),{},url('/api/uploads/requestid/0'),499,{code:'upload_cancelled'});
+ ops.capture(req('POST','0.7.0'),{},url('/api/posts'),499,{code:secret,message:secret});
+ ops.capture(req('POST'),{},url('/api/posts'),500,{code:'upload_aborted'});
+ ops.capture(req('POST'),{},url('/api/posts'),408,{code:'upload_aborted'});
+ ops.capture(req('GET'),{},url('/api/posts/request/requestid'),499,{code:'upload_aborted'});
+ ops.capture(req('PATCH'),{},url('/api/posts/1234'),400,{code:'upload_timeout'});
+ const rows=ops.list(new URLSearchParams()).items.reverse();
+ assert.deepEqual(rows.map(r=>r.code),['server_error','upload_aborted','upload_timeout','upload_cancelled','request_rejected','server_error','request_rejected','request_rejected','request_rejected']);
+ assert.deepEqual(rows.map(r=>r.route),['upload','upload_legacy','upload_resumable','upload_resumable','upload_legacy','upload_legacy','upload_legacy','api','api']);
+ assert.equal(rows[1].client_version,'unknown');assert.equal(rows[2].client_version,'0.8.0');assert.equal(rows[4].client_version,'0.7.0');
+ assert(!JSON.stringify(rows).includes(secret));assert.deepEqual(db.prepare('SELECT * FROM operational_errors WHERE id=1').get(),before);
+ assert.equal(ops.record({source:'client',code:'upload_aborted',status:499}),null);
+ for(const invalidVersion of ['0.8.0\n','0.8.0-beta',['0.8.0'],null,secret]){const id=ops.record({source:'client',code:'network',clientVersion:invalidVersion});assert.equal(db.prepare('SELECT client_version FROM operational_errors WHERE id=?').get(id).client_version,'unknown');}
+});
+test('owner summary separates connection failures and client reports from server 5xx while exposing receiving and queued work',t=>{
+ const db=openStore(':memory:');t.after(()=>db.close());let now=Date.now();const gate={active:1,maximum:2,receiving:2,waiting:1,inFlight:4,maxInFlight:4};
+ const ops=createOperations({db,budget:100000,gate,clock:()=>now});
+ ops.record({code:'upload_aborted',status:499});ops.record({code:'upload_timeout',status:408});ops.record({code:'upload_cancelled',status:499});
+ ops.record({source:'client',code:'network'});ops.record({status:413});
+ let snapshot=ops.snapshot();assert.equal(snapshot.errors24h,5);assert.deepEqual({...snapshot.errorSummary},{total:5,server5xx:0,busyResponses:0,uploadConnections:3,rejected4xx:1,clientDiagnostics:1});
+ assert.equal(snapshot.uploads.active,1);assert.equal(snapshot.uploads.maximum,2);assert.equal(snapshot.uploads.receiving,2);assert.equal(snapshot.uploads.waiting,1);assert.equal(snapshot.uploads.inFlight,4);assert.equal(snapshot.uploads.maxInFlight,4);
+ ops.record({status:503});ops.record({status:500});snapshot=ops.snapshot();assert.equal(snapshot.errorSummary.server5xx,2);assert.equal(snapshot.errorSummary.busyResponses,1);
+ now+=86400001;snapshot=ops.snapshot();assert.equal(snapshot.errors24h,0);assert.equal(snapshot.errorSummary.server5xx,0);assert.equal(snapshot.errorSummary.uploadConnections,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM operational_errors').get().n,7);
 });
