@@ -11,7 +11,7 @@ function inspectDatabase(file){
   const check=db.prepare('PRAGMA integrity_check').all();if(check.length!==1||Object.values(check[0])[0]!=='ok')throw Error('SQLite integrity check failed');
   if(db.prepare('PRAGMA foreign_key_check').all().length)throw Error('SQLite relationships are damaged');
    const present=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row=>row.name));
-   const counts={};for(const table of ['profiles','posts','comments','likes','follows','notifications','direct_messages','moderation','avatars'])if(present.has(table))counts[table]=db.prepare('SELECT COUNT(*) n FROM '+table).get().n;
+   const counts={};for(const table of ['profiles','posts','comments','likes','follows','notifications','direct_messages','moderation','avatars','post_photos'])if(present.has(table))counts[table]=db.prepare('SELECT COUNT(*) n FROM '+table).get().n;
   return {schemaVersion:db.prepare('PRAGMA user_version').get().user_version,counts};
  }finally{db.close()}
 }

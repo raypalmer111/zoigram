@@ -14,10 +14,16 @@ function M.create(kit,action)
   self.generation=(self.generation or 0)+1
   for _,t in ipairs(self.tasks)do if t.task and t.task:IsValid()then pcall(function()t.task.OnSuccess:Remove(kit.outer,t.success);t.task.OnFail:Remove(kit.outer,t.fail)end)end end;self.tasks={}
  end
- function page:render(model)
-  self.model=model;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
+   function page:setProgress(progress)
+   local message=L.t(progress.messageKey or'Загрузка…')
+   if type(progress.percent)=='number'and progress.percent<100 then message=message..' '..math.max(0,math.min(100,math.floor(progress.percent)))..'%'
+   elseif type(progress.photo)=='number'and type(progress.total)=='number'then message=message..' '..progress.photo..'/'..progress.total end
+   if self.progressText~=message then self.progressText=message;self.status:SetText(message);self.statusPanel:SetVisibility(UE.ESlateVisibility.Visible)end
+  end
+  function page:render(model)
+  self.model=model;self.progressText=nil;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
   self.status:SetText(L.t(status));self.status:SetColorAndOpacity(Kit.slate(model.error and P.accent or P.muted));self.statusPanel:SetVisibility(status~=''and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
-   local route=tostring(model.server)..':'..tostring(model.me and model.me.id or'')..':'..tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
+   local route=tostring(model.server)..':'..tostring(model.me and model.me.id or'')..':'..tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='create'and model.draftAuthor or'')..':'..tostring(model.mode=='create'and model.draft and model.draft.city or'')..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
   if self.route~=route then self.saved={};self.scroll:ScrollToStart()else for name,w in pairs(self.inputs)do if w:IsValid()then self.saved[name]=tostring(w:GetText())end end end
   self.route=route;self.inputs={};self:stopImages();if self.k then self.k:destroy()end;self.content:ClearChildren();local k=Kit.new(kit.outer);self.k=k;local content=self.content
   self.body:SetPadding(Kit.margin(model.mode=='feed'and 0 or 14))
@@ -84,6 +90,10 @@ function M.create(kit,action)
    content:AddChild(k:text(title,19,'OnlineEmpty',P.ink,true,false,true));gap(6);content:AddChild(k:text(description,12,'OnlineEmptyHint',P.muted,false,false,true));gap(30)
   end
   local function image(post,column,index,tile)
+   if not tile and type(post.photos)=='table'and #post.photos>0 then
+    local at=math.max(1,math.min(model.albumIndices and model.albumIndices[post.id]or 1,#post.photos));local p=post.photos[at]
+    post={id=tostring(post.id)..':'..at,width=p.width,height=p.height,thumbnailUrl=p.thumbnailUrl}
+   end
    local name='OnlinePhoto'..index;local width=tile or(model.mode=='feed'and 324 or 296);local height=tile or math.min(420,width*post.height/math.max(1,post.width));if not tile then width=height*post.width/math.max(1,post.height)end
    local overlay=k:make(UE.UOverlay,name..'Overlay');local function stretch(w)local slot=overlay:AddChildToOverlay(w);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Fill);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Fill)end
    stretch(k:panel(name..'Bg',nil,0,P.surface));local pic=k:make(UE.UImage,name);pic:SetColorAndOpacity(P.white);if tile then local scale=k:make(UE.UScaleBox,name..'Crop');scale:SetStretch(5);scale:AddChild(k:box(name..'Aspect',post.width,post.height,pic));stretch(scale)else stretch(pic)end;pic:SetVisibility(UE.ESlateVisibility.Collapsed)
@@ -121,6 +131,12 @@ function M.create(kit,action)
     if model.me and post.author.id==model.me.id then local menu=k:button('OnlinePostMenu'..i,k:glyph('more','OnlinePostMenuGlyph'..i,18),function()action('postMenu',post)end,7);menu:SetIsEnabled(not model.busy);head:AddChild(menu)end
     if model.postMenu==post.id and model.me and post.author.id==model.me.id then button(column,L.t('Изменить подпись'),'EditPost'..i,'editPost',post);button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)end
     image(post,column,i)
+     if post.photos and #post.photos>1 then
+      local at=math.max(1,math.min(model.albumIndices and model.albumIndices[post.id]or 1,#post.photos));local navigation=k:make(UE.UHorizontalBox,'OnlineAlbumNav'..i);Kit.center(column,navigation)
+      button(navigation,'‹','AlbumPrev'..i,'albumPhoto',{id=post.id,index=at-1}):SetIsEnabled(not model.busy and at>1)
+      navigation:AddChildToHorizontalBox(k:box('OnlineAlbumCountSize'..i,130,34,k:text(tostring(at)..' / '..#post.photos,11,'OnlineAlbumCount'..i,P.muted))):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+      button(navigation,'›','AlbumNext'..i,'albumPhoto',{id=post.id,index=at+1}):SetIsEnabled(not model.busy and at<#post.photos)
+     end
     local row=k:make(UE.UHorizontalBox,'OnlineActions'..i);column:AddChild(k:panel('OnlineActionsPad'..i,row,4))
      local reaction=k:make(UE.UHorizontalBox,'OnlineLikeContent'..i)
      reaction:AddChildToHorizontalBox((k:glyph(post.liked and'heartFilled'or'heart','OnlineHeart'..i,19,post.liked and P.accent or P.ink))):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
@@ -218,14 +234,8 @@ function M.create(kit,action)
     end
     gap(10);input('message',L.t('Ваше сообщение'),model:messageDraft(model.conversationId),68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8);button(content,L.t('Отправить геолокацию'),'SendLocation','location');gap(8)
    elseif model.mode=='create'then
-   gap(8);local draft=model.draft
-   if draft and draft.texture and draft.texture:IsValid()then
-    local pic=k:make(UE.UImage,'OnlineDraftImage');pic:SetBrushFromTexture(draft.texture,false);local h=math.min(225,300*draft.height/math.max(1,draft.width));Kit.center(content,k:box('OnlineDraftImageSize',h*draft.width/math.max(1,draft.height),h,pic));gap()
-   else empty(L.t('Поймайте момент'),L.t('Сделайте кадр в фоторежиме, сохраните его и вернитесь сюда.'))end
-   button(content,draft and draft.texture and L.t('Переснять')or L.t('Открыть фоторежим'),'Camera','camera');gap()
-   input('caption',L.t('Подпись'),draft and draft.caption or'',82);label(L.t('Пост увидят участники вашего сообщества.'),10,'Visibility',P.muted);gap()
-   local publish=button(content,L.t('Опубликовать'),'Publish','publish',nil,P.accent,true);publish:SetIsEnabled(not model.busy and draft~=nil and draft.texture~=nil)
-  elseif model.mode=='deletePost'then
+    require('B1.UI.AlbumComposer').render(self,model,k,content,button,label,gap,input,empty,action)
+   elseif model.mode=='deletePost'then
    gap(18);label(L.t('Удалить эту публикацию?'),20,'DeleteTitle',P.ink,true);gap();label(L.t('Фото, лайки и комментарии исчезнут из Zoigram. Отменить удаление нельзя.'),12,'DeleteHelp',P.muted);gap()
    if model.deleteTarget then image(model.deleteTarget,content,'DeletePreview');gap();if model.deleteTarget.caption~=''then label(model.deleteTarget.caption,12,'DeleteCaption');gap()end end
    button(content,L.t('Удалить публикацию'),'ConfirmDelete','confirmDelete',nil,P.accent,true);gap(8);button(content,L.t('Оставить публикацию'),'CancelDelete','back')

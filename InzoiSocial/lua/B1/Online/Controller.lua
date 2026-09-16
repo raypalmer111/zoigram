@@ -15,8 +15,9 @@ function M:request(method,path,body,success,upload,silent,quiet)
  if self.transport.pending then return end
  if not silent then self.busy=true;self.error=nil;self:draw()end
  self.transport:send(self.server,method,path,body,function(status,result)
-  self.busy=false
-  if status>=200 and status<300 then success(result)
+   self.busy=false
+   if upload and not(status>=200 and status<300)then self:publicationFailed(status,result)end
+   if status>=200 and status<300 then success(result)
   elseif status==401 then self.me=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.mode='login';self.error=result.messageKey or result.error
   elseif not quiet then self.error=result.messageKey or result.error or 'Нет связи с сервером. Попробуйте ещё раз.'end
   if not silent or self.error then self:draw()end
@@ -121,44 +122,6 @@ function M:replacePost(post)
  end
  update(self);for _,state in ipairs(self.history or{})do update(state)end
 end
-function M:create()
- if not self.me then self.mode='login';self:draw();return end
- self.app:refresh(false,0);self.mode='create';self.error=nil;self.draftAuthor=self.app.profile and self.app.profile.characterId
- self.draft=self.draftAuthor and Photo.getDraft(self.draftAuthor)
- if not self.draft and self.draftAuthor then
-  local saved=Transport.read('draft')
-  if saved and saved.characterId==self.draftAuthor and saved.accountId==self.me.id and saved.server==self.server and saved.city==UE.UGameplayStatics.GetCurrentLevelName(self.app.context,true)then
-   local ok,texture=pcall(function()return UE.UKismetRenderingLibrary.ImportFileAsTexture2D(self.app.context,Photo.path(saved.photo))end)
-   if ok and texture and texture:IsValid()then
-    local d=Photo.draft(self.draftAuthor);d.photo=saved.photo;d.caption=saved.caption or'';d.texture=texture;d.width=texture:Blueprint_GetSizeX();d.height=texture:Blueprint_GetSizeY();d.onlineRequest=saved.requestId;d.onlineCaption=d.caption;d.onlineAccount=self.me.id;d.onlineServer=self.server;self.draft=d
-   end
-  end
- end
- self:draw()
-end
-function M:camera()
- if not self.me then return end;self.app:refresh(false,0);local author=self.app.profile and self.app.profile.characterId
- if not author then self.error='Дождитесь загрузки персонажа.';self:draw();return end
- local previous=Photo.getDraft(author);if previous then previous.caption=self:input('caption')end
- local ok,err=pcall(Photo.start,self.app.context,author)
- if ok then self.draftAuthor=author;self.app.onExit()
- else Photo.shutdown();self.error='Не удалось открыть фоторежим.';self:draw()end
-end
-function M:publish()
- self.app:refresh(false,0);local author=self.app.profile and self.app.profile.characterId
- local draft=author and Photo.getDraft(author)
- if not self.me or author~=self.draftAuthor or not draft or not draft.texture or not draft.texture:IsValid()then self.error='Сначала сохраните снимок для текущего персонажа.';self:draw();return end
- local caption=self:input('caption');if require('B1.Data.PhotoDraft').captionLength(caption)>2200 then self.error='Подпись должна быть не длиннее 2200 символов.';self:draw();return end
- draft.caption=caption
- if not draft.onlineRequest or draft.onlineCaption~=caption or draft.onlineAccount~=self.me.id or draft.onlineServer~=self.server then draft.onlineRequest=Transport.nonce();draft.onlineCaption=caption;draft.onlineAccount=self.me.id;draft.onlineServer=self.server end
- Transport.write('draft',{characterId=author,city=UE.UGameplayStatics.GetCurrentLevelName(self.app.context,true),photo=draft.photo,caption=caption,accountId=self.me.id,server=self.server,requestId=draft.onlineRequest})
- local ok,filename=pcall(Photo.exportOnline,self.app.context,draft)
- if not ok then self.error='Не удалось подготовить снимок для отправки.';self:draw();return end
- self:request('POST','/api/posts',{requestId=draft.onlineRequest,caption=caption},function(r)
-  if Photo.getDraft(author)==draft then Photo.clear(author)end
-  Transport.write('draft',{});self.draft=nil;self.app.view:clearOnlineInput('caption');self.history={};self.tab='feed';self.notice='Публикация добавлена.';self:feed('all')
- end,filename)
-end
 function M:openLogin()
  if not self.pendingLogin then return end
  local opened=pcall(function()
@@ -182,10 +145,7 @@ function M:saveMessageDraft()
 end
 function M:saveDraft()
  if not self:saveMessageDraft()then return false end
- if self.mode=='create'and self.draftAuthor then
-  local value=self:input('caption');local d=Photo.getDraft(self.draftAuthor)
-  if d or value~=''then d=d or Photo.draft(self.draftAuthor);d.caption=value end
- end
+ return self:savePostDraft()
 end
 function M:uploadAvatar()
  if not self.me then return end
@@ -223,7 +183,8 @@ end
 function M:act(action,value)
  if self.transport.pending then return end
  if self:saveDraft()==false then self:draw();return true end;self.error=nil;self.notice=nil
- if action=='language'then L.set(value);self:saveConfig();self:draw()
+  if self:albumAction(action,value)then return end
+  if action=='language'then L.set(value);self:saveConfig();self:draw()
  elseif action=='back'then self:back()
  elseif action=='connect'then self:connect(self:input('server'))
  elseif action=='login'then
@@ -332,9 +293,9 @@ function M:back()
  return false
 end
 function M:tick(dt)
- self.languageElapsed=(self.languageElapsed or 0)+(dt or 0);if self.languageElapsed>=2 then self.languageElapsed=0;if L.refresh()then self:draw()end end
- self.draftElapsed=(self.draftElapsed or 0)+(dt or 0);if self.draftElapsed>=2 then self.draftElapsed=0;self:saveMessageDraft()end
- self.transport:tick(dt);self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
+ self.languageElapsed=(self.languageElapsed or 0)+(dt or 0);if self.languageElapsed>=2 then self.languageElapsed=0;if L.refresh()then self:saveDraft();self:draw()end end
+ self.draftElapsed=(self.draftElapsed or 0)+(dt or 0);if self.draftElapsed>=2 then self.draftElapsed=0;self:saveDraft()end
+ self.transport:tick(dt);if self.transport.pending and self.transport.pending.progress and self.app.view.page and self.app.view.page.setProgress then self.app.view.page:setProgress(self.transport.pending.progress)end;self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
  if self.pendingAccount and self.me and self.elapsed>=3 and not self.transport.pending then
   self.elapsed=0;if os.time()*1000>self.pendingAccount.expiresAt then self.pendingAccount=nil else self:request('GET','/api/me',nil,function(r)self.me=r.profile;if (r.profile.accountRevision or 0)~=self.accountBefore then self.pendingAccount=nil;self.notice='Вход настроен. Сохраните резервный код в браузере.';self:draw()end end,nil,true,true)end
  end
@@ -359,5 +320,6 @@ function M:tick(dt)
  end
  if self.me and not self.pendingLogin and self.activityElapsed>=20 and not self.transport.pending then self.activityElapsed=0;self:activity()end
 end
-function M:dispose()self:saveMessageDraft();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
+function M:dispose()self:saveDraft();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
+require('B1.Online.Publishing').attach(M,Transport,Photo)
 return M

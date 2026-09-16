@@ -276,5 +276,21 @@
   "Новые сообщения появятся здесь.": "Neue Nachrichten erscheinen hier.",
   "Черновик: {text}": "Entwurf: {text}",
   "Не удалось сохранить черновик сообщения.": "Dein Nachrichtenentwurf konnte nicht gespeichert werden.",
-  "Неверный фильтр диалогов.": "Ungültiger Gesprächsfilter."
+  "Неверный фильтр диалогов.": "Ungültiger Gesprächsfilter.",
+  "Укажите один снимок или альбом.": "Wähle ein einzelnes Foto oder ein Album.",
+  "В альбоме должно быть от 1 до 5 фотографий.": "Ein Album muss 1 bis 5 Fotos enthalten.",
+  "Сервер временно недоступен. Повторите отправку.": "Der Server ist vorübergehend nicht erreichbar. Versuche es erneut.",
+  "Обработка фотографий…": "Fotos werden verarbeitet…",
+  "Не удалось сохранить черновик публикации.": "Der Beitragsentwurf konnte nicht gespeichert werden.",
+  "Для альбомов требуется обновление сервера.": "Für Alben muss der Server aktualisiert werden.",
+  "Снимок не найден. Переснимите или удалите его из черновика.": "Foto nicht gefunden. Nimm es erneut auf oder entferne es aus dem Entwurf.",
+  "Фото {index} из {count}": "Foto {index} von {count}",
+  "Обложка": "Titelbild",
+  "Сделать обложкой": "Als Titelbild verwenden",
+  "Отправка не подтверждена. Повторите её, чтобы проверить результат без дубликатов.": "Der Versand ist nicht bestätigt. Versuche es erneut, um das Ergebnis ohne Duplikat zu prüfen.",
+  "Добавить фото": "Foto hinzufügen",
+  "Черновик сохраняется на этом компьютере.": "Dein Entwurf wird auf diesem Computer gespeichert.",
+  "Повторить отправку": "Erneut senden",
+  "Подтвердить удаление черновика": "Entwurf endgültig löschen",
+  "Удалить черновик": "Entwurf verwerfen"
 }

@@ -25,13 +25,13 @@ function M:send(server,method,path,body,callback,upload)
  local job={id=M.nonce(),createdAt=os.time(),server=server,method=method,path=path,body=body,upload=upload,language=L.language}
  local ok,err=pcall(M.write,'request',job)
  if not ok then callback(0,{error='Не удалось отправить запрос из игры.'});return false end
- self.pending={id=job.id,callback=callback,started=os.time()};return true
+ self.pending={id=job.id,callback=callback,started=os.time(),timeout=upload and 300 or 40};return true
 end
 function M:tick(dt)
  if not self.pending then return end;self.elapsed=self.elapsed+(dt or 0);if self.elapsed<.25 then return end;self.elapsed=0
- local reply=M.read('response');local p=self.pending
+ local reply=M.read('response');local p=self.pending;local progress=M.read('progress');if progress and progress.id==p.id then p.progress=progress end
  if reply and reply.id==p.id then self.pending=nil;p.callback(reply.status,reply.body or {})
- elseif os.time()-p.started>40 then self.pending=nil;p.callback(0,{error='Сетевой модуль не ответил. Повторите действие; после обновления мода может потребоваться перезапуск игры.'})end
+ elseif os.time()-p.started>(p.timeout or 40) then self.pending=nil;p.callback(0,{error='Сетевой модуль не ответил. Повторите действие; после обновления мода может потребоваться перезапуск игры.'})end
 end
 function M:dispose()self.pending=nil end
 return M

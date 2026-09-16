@@ -1666,5 +1666,101 @@
     "Invalid conversation filter.",
     "Filtre de conversations invalide.",
     "대화 필터가 올바르지 않습니다."
+  ],
+  [
+    "Укажите один снимок или альбом.",
+    "Choose a single photo or an album.",
+    "Choisissez une photo ou un album.",
+    "사진 한 장 또는 앨범을 선택하세요."
+  ],
+  [
+    "В альбоме должно быть от 1 до 5 фотографий.",
+    "An album must contain 1 to 5 photos.",
+    "Un album doit contenir de 1 à 5 photos.",
+    "앨범에는 사진 1~5장이 필요합니다."
+  ],
+  [
+    "Сервер временно недоступен. Повторите отправку.",
+    "The server is temporarily unavailable. Try sending again.",
+    "Le serveur est temporairement indisponible. Réessayez l’envoi.",
+    "서버를 일시적으로 사용할 수 없습니다. 다시 전송해 주세요."
+  ],
+  [
+    "Обработка фотографий…",
+    "Processing photos…",
+    "Traitement des photos…",
+    "사진 처리 중…"
+  ],
+  [
+    "Не удалось сохранить черновик публикации.",
+    "Could not save the post draft.",
+    "Impossible d’enregistrer le brouillon de publication.",
+    "게시물 초안을 저장하지 못했습니다."
+  ],
+  [
+    "Для альбомов требуется обновление сервера.",
+    "The server needs an update to support albums.",
+    "Le serveur doit être mis à jour pour prendre en charge les albums.",
+    "앨범을 지원하려면 서버 업데이트가 필요합니다."
+  ],
+  [
+    "Снимок не найден. Переснимите или удалите его из черновика.",
+    "Photo not found. Retake it or remove it from the draft.",
+    "Photo introuvable. Reprenez-la ou retirez-la du brouillon.",
+    "사진을 찾을 수 없습니다. 다시 촬영하거나 초안에서 삭제하세요."
+  ],
+  [
+    "Фото {index} из {count}",
+    "Photo {index} of {count}",
+    "Photo {index} sur {count}",
+    "사진 {index}/{count}"
+  ],
+  [
+    "Обложка",
+    "Cover",
+    "Couverture",
+    "표지"
+  ],
+  [
+    "Сделать обложкой",
+    "Set as cover",
+    "Définir comme couverture",
+    "표지로 설정"
+  ],
+  [
+    "Отправка не подтверждена. Повторите её, чтобы проверить результат без дубликатов.",
+    "Sending is not confirmed. Retry to check the result without creating a duplicate.",
+    "L’envoi n’est pas confirmé. Réessayez pour vérifier le résultat sans créer de doublon.",
+    "전송이 확인되지 않았습니다. 중복 게시 없이 결과를 확인하려면 다시 시도하세요."
+  ],
+  [
+    "Добавить фото",
+    "Add photo",
+    "Ajouter une photo",
+    "사진 추가"
+  ],
+  [
+    "Черновик сохраняется на этом компьютере.",
+    "Your draft is saved on this computer.",
+    "Votre brouillon est enregistré sur cet ordinateur.",
+    "초안은 이 컴퓨터에 저장됩니다."
+  ],
+  [
+    "Повторить отправку",
+    "Retry sending",
+    "Réessayer l’envoi",
+    "다시 전송"
+  ],
+  [
+    "Подтвердить удаление черновика",
+    "Confirm draft deletion",
+    "Confirmer la suppression du brouillon",
+    "초안 삭제 확인"
+  ],
+  [
+    "Удалить черновик",
+    "Discard draft",
+    "Supprimer le brouillon",
+    "초안 삭제"
   ]
 ]

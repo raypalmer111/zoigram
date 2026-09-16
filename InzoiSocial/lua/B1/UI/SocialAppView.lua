@@ -76,7 +76,7 @@ function M.create(outer,actions,returnVisibility)
   end
   self.page:render(model)
  end
- function view:invalidateOnlinePhoto(id)self.page.cache[id]=nil end
+ function view:invalidateOnlinePhoto(id)self.page.cache[id]=nil;for key in pairs(self.page.cache)do if type(key)=='string'and key:sub(1,#tostring(id)+1)==tostring(id)..':'then self.page.cache[key]=nil end end end
  function view:getOnlineInput(name)return self.page:get(name)end
  function view:clearOnlineInput(name)self.page:clear(name)end
  return view

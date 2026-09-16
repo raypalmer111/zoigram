@@ -13,6 +13,7 @@ function openStore(filename){
  CREATE TABLE IF NOT EXISTS logins(state_hash TEXT PRIMARY KEY, device_hash TEXT NOT NULL REFERENCES devices(secret_hash) ON DELETE CASCADE, cookie_hash TEXT NOT NULL, expires_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS nonces(nonce TEXT PRIMARY KEY, expires_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, request_id TEXT NOT NULL, payload_hash TEXT NOT NULL, caption TEXT NOT NULL, created_at INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, image BLOB NOT NULL, thumbnail BLOB NOT NULL, bytes INTEGER NOT NULL, UNIQUE(profile_id,request_id));
+ CREATE TABLE IF NOT EXISTS post_photos(post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 4),width INTEGER NOT NULL,height INTEGER NOT NULL,image BLOB NOT NULL,thumbnail BLOB NOT NULL,bytes INTEGER NOT NULL,PRIMARY KEY(post_id,position));
  CREATE INDEX IF NOT EXISTS posts_author ON posts(profile_id,id DESC);
  CREATE TABLE IF NOT EXISTS likes(profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, PRIMARY KEY(profile_id,post_id));
  CREATE TABLE IF NOT EXISTS follows(follower_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,following_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,PRIMARY KEY(follower_id,following_id),CHECK(follower_id<>following_id));
@@ -54,7 +55,7 @@ function openStore(filename){
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_follow ON notifications(profile_id,actor_id) WHERE kind='follow';
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_comment ON notifications(comment_id) WHERE kind='comment';
  CREATE INDEX IF NOT EXISTS notifications_inbox ON notifications(profile_id,id DESC);
- PRAGMA user_version=7;`);
+ PRAGMA user_version=8;`);
  return db;
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}

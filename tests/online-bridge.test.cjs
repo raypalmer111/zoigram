@@ -4,7 +4,7 @@ const source=fs.readFileSync('InzoiSocial/ui/OnlineBridge/app.js','utf8');
 const encode=v=>Buffer.from(JSON.stringify(v)).toString('hex'),decode=v=>JSON.parse(Buffer.from(v,'hex'));
 async function fixture({session,route=()=>({status:200,body:{ok:true}}),previous}={}){
  const config={session:encode(session||{}),response:encode(previous||{})},calls=[],timers=new Map();let ready,tick,next=0;
- class XHR{open(method,url){this.method=method;this.url=url;this.headers={}}setRequestHeader(k,v){this.headers[k]=v}abort(){this.aborted=true}send(body){this.body=body;calls.push(this);const r=route(this);if(r===null)return;this.status=r.status;this.response=r.raw;this.responseText=JSON.stringify(r.body);queueMicrotask(()=>this.onload())}}
+ class XHR{open(method,url){this.method=method;this.url=url;this.headers={};this.upload={}}setRequestHeader(k,v){this.headers[k]=v}abort(){this.aborted=true}send(body){this.body=body;calls.push(this);const r=route(this);if(r===null)return;this.status=r.status;this.response=r.raw;this.responseText=r.text!==undefined?r.text:JSON.stringify(r.body);if(this.upload.onprogress)this.upload.onprogress({lengthComputable:true,loaded:50,total:100});queueMicrotask(()=>this.onload())}}
  const context={window:{inzoi:{cli:{execute:async(name,args)=>{if(name==='uimod.cfg_load')return {success:true,data:{value:config[args.key]}};config[args.key]=args.value;return {success:true,data:{saved:true}}}}}},engine:{on:(event,fn)=>{ready=fn}},XMLHttpRequest:XHR,Uint8Array,Date,JSON,Promise,Error,escape,unescape,encodeURIComponent,decodeURIComponent,setInterval:fn=>{tick=fn},setTimeout:fn=>{timers.set(++next,fn);return next},clearTimeout:id=>timers.delete(id)};
  vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/locales.js','utf8'),context);vm.runInNewContext(source,context);await ready();await new Promise(setImmediate);
  return {config,calls,timers,run:async(job)=>{config.request=encode({id:String(++next),createdAt:Date.now()/1000,method:'GET',server:'http://127.0.0.1:43821',path:'/api/me',...job});await tick();return decode(config.response)},start:job=>{config.request=encode({id:'timeout-job',createdAt:Date.now()/1000,server:'http://127.0.0.1:43821',...job});return tick()},tick};
@@ -54,3 +54,18 @@ test('bookmarks cross the bridge with comment capability and Chinese/German requ
 });
 
 test('unread conversation filtering and its cursor cross the real bridge allowlist',async()=>{const f=await fixture({session});for(const path of ['/api/conversations?filter=unread','/api/conversations?filter=all','/api/conversations?filter=unread&before=18']){assert.equal((await f.run({path})).status,200);assert(f.calls.at(-1).url.endsWith(path))}for(const path of ['/api/conversations?filter=unread#x','/api/conversations?filter=admin','/api/conversations?filter=unread&owner=other'])assert.equal((await f.run({path})).status,0)});
+
+test('albums read all five distinct local files in order and preserve the pending request ID',async()=>{
+ const f=await fixture({session,route:x=>x.url.startsWith('uploads/')?{status:0,raw:Uint8Array.from({length:64},()=>Number(x.url.match(/_(\d)/)[1])).buffer}:{status:201,body:{post:{id:90}}}});
+ const upload=Array.from({length:5},(_,i)=>'outgoing_'+(i+1)+'.png');const r=await f.run({method:'POST',path:'/api/posts',upload,body:{requestId:'album-stable',caption:'Order'}});assert.equal(r.status,201);
+ const body=JSON.parse(f.calls.at(-1).body);assert.equal(body.requestId,'album-stable');assert.equal(body.imagesBase64.length,5);body.imagesBase64.forEach((v,i)=>assert.equal(Buffer.from(v,'base64')[0],i+1));assert.equal(decode(f.config.progress).percent,50);
+ assert.equal((await f.run({path:'/api/posts/request/album-stable'})).status,201);
+});
+test('local photo errors remain distinct from server errors and never send a partial album',async()=>{
+ const f=await fixture({session,route:()=>({status:404})});const r=await f.run({method:'POST',path:'/api/posts',language:'en',upload:['outgoing_1.png','outgoing_2.png'],body:{requestId:'stable-album',caption:''}});
+ assert.equal(r.status,0);assert.equal(r.body.submitted,false);assert.equal(r.body.messageKey,'Не удалось прочитать снимок.');assert.equal(f.calls.length,1);
+ for(const upload of [[],['outgoing_1.png','outgoing_1.png'],['../session.cfg'],Array(6).fill('outgoing_1.png')]){const before=f.calls.length;assert.equal((await f.run({method:'POST',path:'/api/posts',upload,body:{}})).status,0);assert.equal(f.calls.length,before)}
+});
+test('non-JSON HTTP failures keep their status and do not show HTML; malformed success is uncertain',async()=>{
+ for(const status of [413,429,502,200]){const f=await fixture({session,route:()=>({status,text:'<html>proxy response</html>'})});const r=await f.run({});assert.equal(r.status,status===200?0:status);assert(!r.body.error.includes('<html>'));if(status===502)assert.equal(r.body.messageKey,'Сервер временно недоступен. Повторите отправку.')}
+});

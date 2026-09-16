@@ -3,7 +3,7 @@ const http=require('node:http'),crypto=require('node:crypto'),sharp=require('sha
 const {openStore,transaction,session,hash,random}=require('./store.cjs');
 const I18n=require('./i18n.cjs'),Metadata=require('./social-metadata.cjs');
 sharp.concurrency(2);sharp.cache({memory:32,files:0,items:20});
-const MAX_IMAGE=8*1024*1024,MAX_JSON=12*1024*1024;
+const Albums=require('./albums.cjs'),MAX_IMAGE=Albums.MAX_IMAGE;
 class Problem extends Error{constructor(status,message){super(message);this.status=status}}
 const fail=(status,message)=>{throw new Problem(status,message)};
 const text=(v,max,required=false)=>{if(typeof v!=='string'||[...v].length>max||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(v))fail(400,'Проверьте текст и его длину.');v=v.trim();if(required&&!v)fail(400,'Заполните поле.');return v};
@@ -25,7 +25,7 @@ function createApp(options={}){
  function authorize(req){const token=(req.headers.authorization||'').match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];if(!token)fail(401,'Войдите в Zoigram.');const s=db.prepare('SELECT s.*,p.banned FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE token_hash=? AND expires_at>?').get(hash(token),now());if(!s||s.banned)fail(401,'Войдите в Zoigram заново.');return s}
  function visiblePost(id,user){const p=db.prepare('SELECT p.id,p.profile_id,p.caption,p.created_at,p.width,p.height FROM posts p JOIN profiles a ON a.id=p.profile_id WHERE p.id=? AND a.banned=0').get(id);if(!p||blocked(user,p.profile_id))fail(404,'Публикация недоступна.');return p}
  function mediaGrant(id,s){const payload=Buffer.from(JSON.stringify({p:id,s:s.id,e:now()+15*60000})).toString('base64url');return payload+'.'+crypto.createHmac('sha256',secret).update(payload).digest('base64url')}
- function postDto(p,s){const grant=mediaGrant(p.id,s);return {id:p.id,saved:!!db.prepare('SELECT 1 FROM bookmarks WHERE profile_id=? AND post_id=?').get(s.profile_id,p.id),author:profile(p.profile_id,s.profile_id),caption:p.caption,createdAt:p.created_at,width:p.width,height:p.height,imageUrl:origin+'/api/media/'+p.id+'?grant='+grant,thumbnailUrl:origin+'/api/media/'+p.id+'?size=thumb&grant='+grant,likes:Metadata.likeCounts(db,p.id).likes,liked:!!db.prepare('SELECT 1 FROM likes WHERE profile_id=? AND post_id=?').get(s.profile_id,p.id),comments:db.prepare('SELECT COUNT(*) n FROM comments c JOIN profiles a ON a.id=c.profile_id WHERE c.post_id=? AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=c.profile_id) OR (b.blocker_id=c.profile_id AND b.blocked_id=?))').get(p.id,s.profile_id,s.profile_id).n}}
+ function postDto(p,s){const grant=mediaGrant(p.id,s);return {id:p.id,photos:Albums.list(db,p,origin,grant),saved:!!db.prepare('SELECT 1 FROM bookmarks WHERE profile_id=? AND post_id=?').get(s.profile_id,p.id),author:profile(p.profile_id,s.profile_id),caption:p.caption,createdAt:p.created_at,width:p.width,height:p.height,imageUrl:origin+'/api/media/'+p.id+'?grant='+grant,thumbnailUrl:origin+'/api/media/'+p.id+'?size=thumb&grant='+grant,likes:Metadata.likeCounts(db,p.id).likes,liked:!!db.prepare('SELECT 1 FROM likes WHERE profile_id=? AND post_id=?').get(s.profile_id,p.id),comments:db.prepare('SELECT COUNT(*) n FROM comments c JOIN profiles a ON a.id=c.profile_id WHERE c.post_id=? AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=c.profile_id) OR (b.blocker_id=c.profile_id AND b.blocked_id=?))').get(p.id,s.profile_id,s.profile_id).n}}
  function notify(recipient,actor,kind,postId,commentId){if(recipient===actor)return;db.prepare('INSERT OR IGNORE INTO notifications(profile_id,actor_id,kind,post_id,created_at,comment_id) VALUES(?,?,?,?,?,?)').run(recipient,actor,kind,postId??null,now(),commentId??null)}
  function unreadNotifications(uid,comments=false){return db.prepare(`SELECT COUNT(*) n FROM notifications n JOIN profiles a ON a.id=n.actor_id WHERE n.profile_id=? AND n.read_at IS NULL AND (? OR n.kind!='comment') AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=n.actor_id) OR (b.blocker_id=n.actor_id AND b.blocked_id=?))`).get(uid,comments?1:0,uid,uid).n}
  function unreadMessages(uid){return db.prepare(`SELECT COUNT(*) n FROM direct_messages m JOIN profiles a ON a.id=m.sender_id WHERE m.recipient_id=? AND m.read_at IS NULL AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=m.sender_id) OR (b.blocker_id=m.sender_id AND b.blocked_id=?))`).get(uid,uid,uid).n}
@@ -50,7 +50,7 @@ function createApp(options={}){
    limit('ip:'+ip,600);if(method==='GET'&&p==='/health')return send(res,200,{ok:true,service:'Zoigram',version:require('../package.json').version});
    if(await avatars.handle(req,res,u))return;
    if(await accounts.handle(req,res,u,ip,language))return;
-    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,unreadConversations:true},languages:I18n.languages,limits:{imageBytes:MAX_IMAGE,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
+    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,unreadConversations:true,photoAlbums:true,postRequestLookup:true},languages:I18n.languages,limits:{albumPhotos:Albums.MAX_PHOTOS,imageBytes:MAX_IMAGE,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
    if(method==='POST'&&p==='/api/auth/device'){
     limit('device:'+ip,6,600000);const deviceToken=random(),userCode=crypto.randomBytes(5).toString('hex').toUpperCase(),expiresAt=now()+600000;
     db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at) VALUES(?,?,?)').run(hash(deviceToken),userCode,expiresAt);
@@ -67,7 +67,7 @@ function createApp(options={}){
     const grant=u.searchParams.get('grant')||'';if(grant.length>1000)fail(403,'Ссылка истекла. Обновите ленту.');const [payload,signature,...extra]=grant.split('.'),expected=crypto.createHmac('sha256',secret).update(payload||'').digest('base64url');if(extra.length||!signature||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))fail(403,'Ссылка истекла. Обновите ленту.');
     let g;try{g=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'))}catch{fail(403,'Неверная ссылка.')}
     if(g.p!==Number(media[1])||typeof g.e!=='number'||g.e<now())fail(403,'Ссылка истекла. Обновите ленту.');const s=db.prepare('SELECT s.* FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.id=? AND s.expires_at>? AND p.banned=0').get(g.s,now());if(!s)fail(403,'Войдите заново.');visiblePost(g.p,s.profile_id);
-    const row=db.prepare('SELECT '+(u.searchParams.get('size')==='thumb'?'thumbnail':'image')+' AS image FROM posts WHERE id=?').get(g.p);res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':row.image.length,'Cache-Control':'private, no-store'});return res.end(Buffer.from(row.image));
+    const index=u.searchParams.get('photo')||'0';if(!/^[0-4]$/.test(index))fail(404,'Фото недоступно');const column=u.searchParams.get('size')==='thumb'?'thumbnail':'image';const row=index==='0'?db.prepare('SELECT '+column+' AS image FROM posts WHERE id=?').get(g.p):db.prepare('SELECT '+column+' AS image FROM post_photos WHERE post_id=? AND position=?').get(g.p,Number(index));if(!row)fail(404,'Фото недоступно');res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':row.image.length,'Cache-Control':'private, no-store'});return res.end(Buffer.from(row.image));
    }
    if(!p.startsWith('/api/'))fail(404,'Страница не найдена.');const s=authorize(req),uid=s.profile_id;res.zoigramSession=s;const commentAlerts=String(req.headers['x-zoigram-features']||'').split(',').map(x=>x.trim()).includes('comment-notifications');limit('user:'+uid,240);
    if(method==='DELETE'&&p==='/api/session'){db.prepare('DELETE FROM sessions WHERE id=?').run(s.id);return send(res,200,{ok:true})}
@@ -116,16 +116,26 @@ function createApp(options={}){
     const rows=db.prepare(`SELECT p.id,p.profile_id,p.caption,p.created_at,p.width,p.height FROM posts p JOIN profiles a ON a.id=p.profile_id WHERE a.banned=0 AND p.id<? AND (? IS NULL OR p.profile_id=?) AND (?='all' OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=p.profile_id)) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.profile_id) OR (b.blocker_id=p.profile_id AND b.blocked_id=?)) ORDER BY p.id DESC LIMIT 11`).all(before?Number(before):Number.MAX_SAFE_INTEGER,author,author,scope,uid,uid,uid);
     return send(res,200,{posts:rows.slice(0,10).map(p=>postDto(p,s)),nextCursor:rows.length>10?String(rows[9].id):null});
    }
-   if(method==='POST'&&p==='/api/posts'){
-    limit('upload:'+uid,30,3600000);if(conversions>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');const b=await json(req,MAX_JSON),requestId=key(b.requestId),caption=text(b.caption||'',2200),encoded=b.imageBase64;
-    if(typeof encoded!=='string'||encoded.length>Math.ceil(MAX_IMAGE/3)*4||encoded.length%4!==0||/[^A-Za-z0-9+/=]/.test(encoded))fail(400,'Не удалось прочитать фотографию.');const input=Buffer.from(encoded,'base64');if(input.toString('base64')!==encoded)fail(400,'Не удалось прочитать фотографию.');if(input.length<16||input.length>MAX_IMAGE)fail(413,'Фото должно быть не больше 8 МБ.');
-    const digest=hash(caption+'\0'+encoded),previous=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);if(previous){if(previous.payload_hash!==digest)fail(409,'Этот запрос уже использован для другого поста.');return send(res,200,{post:postDto(visiblePost(previous.id,uid),s),repeated:true})}
-    if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Можно опубликовать до 20 фотографий за сутки.');
-    let image,thumb,info;conversions++;try{const base=sharp(input,{limitInputPixels:32000000,failOn:'warning',animated:false});const meta=await base.metadata();if(!['png','jpeg','webp'].includes(meta.format)||meta.pages>1||!meta.width||!meta.height||meta.width<64||meta.height<64)fail(400,'Выберите обычное фото PNG, JPEG или WebP размером от 64×64.');const full=await base.rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:85,mozjpeg:true}).toBuffer({resolveWithObject:true});image=full.data;info=full.info;thumb=await sharp(image).resize({width:512,height:512,fit:'inside',withoutEnlargement:true}).jpeg({quality:80}).toBuffer()}catch(e){if(e.status)throw e;fail(400,'Фотография повреждена или не поддерживается.')}finally{conversions--}
-    const postId=transaction(db,()=>{const same=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);if(same){if(same.payload_hash!==digest)fail(409,'Идентификатор запроса уже использован.');return same.id}if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n;if(used+image.length+thumb.length>budget)fail(507,'Хранилище заполнено. Владелец сервера уже может освободить место.');return Number(db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(uid,requestId,digest,caption,now(),info.width,info.height,image,thumb,image.length+thumb.length).lastInsertRowid)});
-    return send(res,201,{post:postDto(visiblePost(postId,uid),s)});
-   }
-   const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
+       const requestPost=p.match(/^\/api\/posts\/request\/([a-zA-Z0-9_-]{8,100})$/);
+    if(method==='GET'&&requestPost){const row=db.prepare('SELECT id FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestPost[1]);return send(res,200,{found:!!row,...(row?{post:postDto(visiblePost(row.id,uid),s)}:{})})}
+    if(method==='POST'&&p==='/api/posts'){
+     limit('upload:'+uid,30,3600000);if(conversions>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');conversions++;
+     try{
+      const b=await json(req,Albums.MAX_BODY),requestId=key(b.requestId),caption=text(b.caption||'',2200),{inputs,digest}=Albums.decode(b,caption,fail);
+      const previous=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);
+      if(previous){if(previous.payload_hash!==digest)fail(409,'Этот запрос уже использован для другого поста.');return send(res,200,{post:postDto(visiblePost(previous.id,uid),s),repeated:true})}
+      if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');
+      const photos=await Albums.convert(inputs,fail),bytes=photos.reduce((n,p)=>n+p.bytes,0),cover=photos[0];
+      const postId=transaction(db,()=>{
+       const same=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);if(same){if(same.payload_hash!==digest)fail(409,'Идентификатор запроса уже использован.');return same.id}
+       if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');
+       const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n;if(used+bytes>budget)fail(507,'Хранилище заполнено. Владелец сервера уже может освободить место.');
+       const id=Number(db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(uid,requestId,digest,caption,now(),cover.width,cover.height,cover.image,cover.thumbnail,bytes).lastInsertRowid);
+       const insert=db.prepare('INSERT INTO post_photos VALUES(?,?,?,?,?,?,?)');photos.slice(1).forEach((p,i)=>insert.run(id,i+1,p.width,p.height,p.image,p.thumbnail,p.bytes));return id;
+      });return send(res,201,{post:postDto(visiblePost(postId,uid),s)});
+     }finally{conversions--}
+    }
+const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
    if(postRoute){const id=Number(postRoute[1]),action=postRoute[2],post=visiblePost(id,uid);
     if(!action&&method==='GET')return send(res,200,{post:postDto(post,s)});
     if(!action&&method==='PATCH'){
@@ -165,7 +175,7 @@ function createApp(options={}){
    fail(404,'Действие не найдено.');
   }catch(e){const status=e.status||500;if(status===429)res.setHeader('Retry-After','60');if(!e.status&&options.onError)options.onError(e);if(!res.headersSent){const key=status===500?'Ошибка сервера. Попробуйте позже.':e.message;const error=I18n.t(language,key);if(u.pathname.startsWith('/api/'))send(res,status,{error,messageKey:key});else send(res,status,page('Zoigram','<p>'+escape(error)+'</p>',language),'text/html')}else res.end()}
  }
- const server=http.createServer(handler);server.requestTimeout=30000;server.headersTimeout=15000;server.keepAliveTimeout=5000;
+ const server=http.createServer(handler);server.requestTimeout=120000;server.headersTimeout=15000;server.keepAliveTimeout=5000;
  let closing;
  return {server,db,close:()=>closing||(closing=new Promise(resolve=>{clearInterval(cleaner);server.close(()=>{if(!options.db)db.close();resolve()});server.closeIdleConnections()})),origin};
 }
