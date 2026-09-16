@@ -27,6 +27,19 @@ function M.attach(C,Transport,Photo)
   end
   return self:persistPublication(d)
  end
+ function C:restorePublicationPhotos(d)
+  -- Photo Mode can release imported textures when it closes. The saved file is durable.
+  for _,p in ipairs(d.photos or{})do
+   local ok,valid=pcall(function()return p.texture and p.texture:IsValid()end)
+   if not ok or not valid then
+    p.texture=nil
+    if Valid.validPhoto(p.photo)then
+     local loaded,texture=pcall(function()return UE.UKismetRenderingLibrary.ImportFileAsTexture2D(self.app.context,Photo.path(p.photo))end)
+     if loaded and texture and texture:IsValid()then p.texture=texture;p.width=texture:Blueprint_GetSizeX();p.height=texture:Blueprint_GetSizeY()end
+    end
+   end
+  end
+ end
  function C:create()
   if not self.me then self.mode='login';self:draw();return end
   self.app:refresh(false,0);self.mode='create';self.error=nil
@@ -44,13 +57,10 @@ function M.attach(C,Transport,Photo)
    end
    if saved then
     d.caption=saved.caption;d.onlineRequest=saved.requestId;d.pending=saved.pending
-    for _,p in ipairs(saved.photos)do
-     local item={photo=p.photo};local ok,texture=pcall(function()return UE.UKismetRenderingLibrary.ImportFileAsTexture2D(self.app.context,Photo.path(p.photo))end)
-     if ok and texture and texture:IsValid()then item.texture=texture;item.width=texture:Blueprint_GetSizeX();item.height=texture:Blueprint_GetSizeY()end
-     d.photos[#d.photos+1]=item
-    end
+     for _,p in ipairs(saved.photos)do d.photos[#d.photos+1]={photo=p.photo}end
    end
   end
+  self:restorePublicationPhotos(d)
   self.draft=d;self.draftIndex=math.max(1,math.min(self.draftIndex or 1,#d.photos));self:draw()
  end
  function C:camera(add)
@@ -73,6 +83,7 @@ function M.attach(C,Transport,Photo)
   if result.submitted==false or(status>=400 and status<500 and status~=409 and status~=401)then d.pending=false;self:persistPublication(d)end
  end
  function C:sendPublication(d)
+  self:restorePublicationPhotos(d)
   local files={}
   for i,p in ipairs(d.photos)do
    local ok,filename=pcall(Photo.exportOnline,self.app.context,p,i)
