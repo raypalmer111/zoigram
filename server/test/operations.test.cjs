@@ -91,8 +91,9 @@ test('owner summary separates connection failures and client reports from server
  const ops=createOperations({db,budget:100000,gate,clock:()=>now});
  ops.record({code:'upload_aborted',status:499});ops.record({code:'upload_timeout',status:408});ops.record({code:'upload_cancelled',status:499});
  ops.record({source:'client',code:'network'});ops.record({status:413});
- let snapshot=ops.snapshot();assert.equal(snapshot.errors24h,5);assert.deepEqual({...snapshot.errorSummary},{total:5,server5xx:0,busyResponses:0,uploadConnections:3,rejected4xx:1,clientDiagnostics:1});
+ let snapshot=ops.snapshot();assert.equal(snapshot.errors24h,5);assert.deepEqual({...snapshot.errorSummary},{total:5,server5xx:0,busyResponses:0,uploadConnections:3,rejected4xx:1,mediaAccessRejected:0,clientDiagnostics:1});
  assert.equal(snapshot.uploads.active,1);assert.equal(snapshot.uploads.maximum,2);assert.equal(snapshot.uploads.receiving,2);assert.equal(snapshot.uploads.waiting,1);assert.equal(snapshot.uploads.inFlight,4);assert.equal(snapshot.uploads.maxInFlight,4);
  ops.record({status:503});ops.record({status:500});snapshot=ops.snapshot();assert.equal(snapshot.errorSummary.server5xx,2);assert.equal(snapshot.errorSummary.busyResponses,1);
  now+=86400001;snapshot=ops.snapshot();assert.equal(snapshot.errors24h,0);assert.equal(snapshot.errorSummary.server5xx,0);assert.equal(snapshot.errorSummary.uploadConnections,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM operational_errors').get().n,7);
 });
+

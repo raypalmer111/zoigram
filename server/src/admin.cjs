@@ -18,6 +18,7 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
   return db.prepare("SELECT s.id,s.profile_id,s.expires_at,p.username,p.display_name FROM admin_sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.token_hash=? AND s.expires_at>? AND p.id=? AND p.banned=0").get(hash(token),Date.now(),ownerId())||null;
  }
  function protect(req,s){sameOrigin(req);const value=req.headers['x-csrf-token'];if(typeof value!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(value)||!crypto.timingSafeEqual(Buffer.from(value),Buffer.from(csrf(s))))fail(403,'Сеанс страницы устарел. Обновите панель и повторите действие.');}
+ async function protectedBody(req,s,max){const body=await json(req,max),current=authorize(req);if(!current||current.id!==s.id)fail(401,'Войдите в аккаунт владельца Zoigram.');return body}
  const summary=()=>({profiles:db.prepare('SELECT COUNT(*) n FROM profiles').get().n,posts:db.prepare('SELECT COUNT(*) n FROM posts').get().n,comments:db.prepare('SELECT COUNT(*) n FROM comments').get().n,reports:db.prepare('SELECT COUNT(*) n FROM reports WHERE resolved=0').get().n,banned:db.prepare('SELECT COUNT(*) n FROM profiles WHERE banned=1').get().n,bytes:db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n,storageBytes,newPosts:db.prepare('SELECT COUNT(*) n FROM posts WHERE created_at>?').get(Date.now()-86400000).n});
  const person=p=>p?{...Metadata.verification(db,p.id),id:p.id,username:p.username,displayName:p.display_name,bio:p.bio||'',banned:!!p.banned,createdAt:p.created_at,isOwner:p.id===ownerId()}:null;
  function profile(id){const p=db.prepare('SELECT * FROM profiles WHERE id=?').get(id);return p?{...person(p),posts:db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=?').get(id).n,comments:db.prepare('SELECT COUNT(*) n FROM comments WHERE profile_id=?').get(id).n}:null}
@@ -52,12 +53,12 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
    const s=authorize(req);if(!s)fail(401,'Войдите в аккаунт владельца Zoigram.');
    if(m==='POST')protect(req,s);else if(m!=='GET')fail(405,'Метод не поддерживается.');
    if(m==='POST'&&p==='/admin/api/logout'){db.prepare('DELETE FROM admin_sessions WHERE id=?').run(s.id);res.setHeader('Set-Cookie',cookie(sessionName,'',0));send(res,200,{ok:true});return true}
-   if(m==='POST'&&p==='/admin/api/actions'){limit('admin-action:'+s.profile_id,30);const body=await json(req,8192);send(res,200,act(db,body,{id:s.profile_id},ownerSteamId));return true}
+   if(m==='POST'&&p==='/admin/api/actions'){limit('admin-action:'+s.profile_id,30);const body=await protectedBody(req,s,8192);send(res,200,act(db,body,{id:s.profile_id},ownerSteamId));return true}
    if(m==='GET'&&p==='/admin/api/zoimeet'){send(res,200,await monitor(u.searchParams));return true;}
    if(m==='GET'&&p==='/admin/api/operations'){send(res,200,operations.snapshot());return true}
    if(m==='GET'&&p==='/admin/api/errors'){send(res,200,operations.list(u.searchParams));return true}
    if(m==='GET'&&p==='/admin/api/announcements'){send(res,200,announcements.list());return true}
-   if(m==='POST'&&p==='/admin/api/announcements'){limit('announcement:'+s.profile_id,20);send(res,200,announcements.save(await json(req,12288),s.profile_id));return true}
+   if(m==='POST'&&p==='/admin/api/announcements'){limit('announcement:'+s.profile_id,20);send(res,200,announcements.save(await protectedBody(req,s,12288),s.profile_id));return true}
    if(m==='GET'&&p==='/admin/api/summary'){send(res,200,summary());return true}
    const media=p.match(/^\/admin\/api\/media\/(\d+)$/);if(m==='GET'&&media){const id=numeric(media[1]),index=u.searchParams.get('photo')||'0';if(!/^[0-4]$/.test(index))fail(404,'Фото уже удалено.');const column=u.searchParams.get('size')==='thumb'?'thumbnail':'image',photo=index==='0'?db.prepare('SELECT '+column+' image FROM posts WHERE id=?').get(id):db.prepare('SELECT '+column+' image FROM post_photos WHERE post_id=? AND position=?').get(id,Number(index));if(!photo)fail(404,'Фото уже удалено.');res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':photo.image.length});res.end(Buffer.from(photo.image));return true}
    if(m==='GET'&&p==='/admin/api/profiles'){

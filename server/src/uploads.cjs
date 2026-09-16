@@ -2,7 +2,7 @@
 const crypto=require('node:crypto');
 const {transaction,hash}=require('./store.cjs'),Albums=require('./albums.cjs');
 const MAX_INPUT=25*1024*1024,TTL=24*3600000;
-function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDto,visiblePost,clock=Date.now}){
+function createUploads({db,budget,fail,json,send,key,text,limit,transport,authorize,postDto,visiblePost,clock=Date.now}){
  const stagedLimit=Math.min(512*1024*1024,Math.floor(budget/4));
  const row=(uid,id)=>db.prepare('SELECT * FROM upload_sessions WHERE profile_id=? AND request_id=?').get(uid,id);
  function clean(){db.prepare('DELETE FROM upload_sessions WHERE post_id IS NULL AND expires_at<?').run(clock());}
@@ -18,7 +18,7 @@ function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDt
   const match=u.pathname.match(/^\/api\/uploads(?:\/([a-zA-Z0-9_-]{8,100})(?:\/(complete|[0-4]))?)?$/);
   if(!match)return false;const uid=s.profile_id,m=req.method,id=match[1],part=match[2];clean();
   if(m==='POST'&&!id){
-   limit('upload-start:'+uid,60,3600000);const b=await json(req,16384),rid=key(b.requestId),caption=text(b.caption||'',2200),count=b.count;
+   limit('upload-start:'+uid,60,3600000);const b=await json(req,16384);authorize(req);const rid=key(b.requestId),caption=text(b.caption||'',2200),count=b.count;
    if(!Number.isInteger(count)||count<1||count>5)fail(400,'В альбоме должно быть от 1 до 5 фотографий.');
    let r=row(uid,rid);
    if(r){if(r.caption!==caption||r.photo_count!==count)fail(409,'Этот запрос уже использован для другого поста.');}
@@ -39,7 +39,7 @@ function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDt
    if(r.post_id)fail(409,'Публикация уже отправлена.');const index=Number(part);if(index>=r.photo_count)fail(400,'Неверный снимок.');
    limit('upload-part:'+uid,120,3600000);const lease=transport.admit(req,res);
    try{
-    const b=await json(req,Math.ceil(MAX_INPUT/3)*4+4096);let value=b.imageBase64;delete b.imageBase64;
+    const b=await json(req,Math.ceil(MAX_INPUT/3)*4+4096);authorize(req);let value=b.imageBase64;delete b.imageBase64;
     if(typeof value!=='string')fail(400,'Не удалось прочитать фотографию.');
     if(value.length>Math.ceil(MAX_INPUT/3)*4)fail(413,'Фото должно быть не больше 25 МБ.');
     if(value.length%4||/[^A-Za-z0-9+/=]/.test(value))fail(400,'Не удалось прочитать фотографию.');
@@ -47,7 +47,7 @@ function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDt
     if(input.length>MAX_INPUT)fail(413,'Фото должно быть не больше 25 МБ.');if(input.length<16||input.toString('base64')!==value)fail(400,'Не удалось прочитать фотографию.');
     value=null;currentGeneration();const digest=hash(input),previous=db.prepare('SELECT digest FROM upload_parts WHERE profile_id=? AND request_id=? AND position=?').get(uid,id,index);
     if(previous){if(previous.digest!==digest)fail(409,'Снимок уже загружен с другим содержимым.');send(res,200,{ok:true,index,repeated:true});return true;}
-    await lease.process();const [photo]=await Albums.convert([input],fail);lease.check();
+    await lease.process();authorize(req);const [photo]=await Albums.convert([input],fail);lease.check();authorize(req);
     transaction(db,()=>{
      const current=currentGeneration();if(current.post_id)fail(409,'Публикация уже отправлена.');if(index>=current.photo_count)fail(409,'Загрузка изменена. Повторите отправку.');
      const other=db.prepare('SELECT digest FROM upload_parts WHERE profile_id=? AND request_id=? AND position=?').get(uid,id,index);
@@ -57,7 +57,7 @@ function createUploads({db,budget,fail,json,send,key,text,limit,transport,postDt
    }finally{lease.release();}
   }
   if(m==='POST'&&part==='complete'){
-   limit('upload-complete:'+uid,60,3600000);await json(req,4096);
+   limit('upload-complete:'+uid,60,3600000);await json(req,4096);authorize(req);
    const postId=transaction(db,()=>{
     const current=currentGeneration();if(current.post_id)return current.post_id;
     const photos=db.prepare('SELECT * FROM upload_parts WHERE profile_id=? AND request_id=? ORDER BY position').all(uid,id);

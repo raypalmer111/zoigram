@@ -10,7 +10,7 @@ function readStatus(root){
   const file=path.join(root,'status.json'),stat=fs.lstatSync(file);
   if(!stat.isFile()||stat.isSymbolicLink()||stat.size>32768)return {};
   const v=JSON.parse(fs.readFileSync(file,'utf8'));if(v.format!==FORMAT)return {};
-  const result={lastAttemptAt:timestamp(v.lastAttemptAt),lastSuccessAt:timestamp(v.lastSuccessAt)};
+  const result={format:FORMAT,lastAttemptAt:timestamp(v.lastAttemptAt),lastSuccessAt:timestamp(v.lastSuccessAt),nextDueAt:timestamp(v.nextDueAt),intervalSeconds:Number.isInteger(v.intervalSeconds)&&v.intervalSeconds>=60&&v.intervalSeconds<=604800?v.intervalSeconds:86400,inProgress:v.inProgress===true};
   if(v.lastError&&timestamp(v.lastError.at)&&CODES.has(v.lastError.code))result.lastError={at:v.lastError.at,code:v.lastError.code};
   if(v.lastRestoreTest&&timestamp(v.lastRestoreTest.at)&&typeof v.lastRestoreTest.ok==='boolean')result.lastRestoreTest={at:v.lastRestoreTest.at,ok:v.lastRestoreTest.ok,durationMs:Number.isSafeInteger(v.lastRestoreTest.durationMs)&&v.lastRestoreTest.durationMs>=0?v.lastRestoreTest.durationMs:0};
   if(snapshotName.test(v.lastBackup?.name||'')&&Number.isSafeInteger(v.lastBackup.bytes)&&v.lastBackup.bytes>=0)result.lastBackup={name:v.lastBackup.name,bytes:v.lastBackup.bytes,createdAt:timestamp(v.lastBackup.createdAt),schemaVersion:Number.isSafeInteger(v.lastBackup.schemaVersion)?v.lastBackup.schemaVersion:null};

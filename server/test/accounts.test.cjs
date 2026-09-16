@@ -105,3 +105,12 @@ test('owner password login grants a separate Secure cookie and denies normal acc
  const state=await(await f.request('/admin/api/session',{headers:{Cookie:cookie.split(';')[0]}})).json();assert(state.authenticated);assert.equal(state.owner.id,ownerId);
  assert.equal((await f.request('/admin/api/summary',{headers:{Authorization:'Bearer '+other.access.token}})).status,401);
 });
+
+test('disconnecting an incomplete account form is a client cancellation, not an internal server error',async t=>{
+ const http=require('node:http'),errors=[],f=await fixture(t,{onError:error=>errors.push(error)}),flow=await f.browser('register'),body=new URLSearchParams({csrf:flow.csrf,login:'aborted_player',password:PASS}).toString();
+ let received,closed,client;const incoming=new Promise(resolve=>received=resolve),finished=new Promise(resolve=>closed=resolve),listener=req=>{if(req.url==='/account/register?lang=ru'){f.app.server.off('request',listener);req.on('close',closed);received(req)}};f.app.server.on('request',listener);
+ try{client=http.request({host:'127.0.0.1',port:f.app.server.address().port,path:'/account/register?lang=ru',method:'POST',headers:{Cookie:flow.cookie,Origin:origin,'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body)}});client.on('error',()=>{});client.setTimeout(4000,()=>client.destroy());client.write(body.slice(0,20));const req=await incoming;
+  await(await f.request('/health')).arrayBuffer();assert.equal(req.complete,false);client.destroy();await finished;await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(errors,[]);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM profiles').get().n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM account_credentials').get().n,0);
+ }finally{f.app.server.off('request',listener);client?.destroy()}
+});

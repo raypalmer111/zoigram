@@ -44,3 +44,18 @@ test('avatar tickets expire and cannot authorize other routes; malformed images 
  app.db.prepare('UPDATE avatar_uploads SET expires_at=0').run();assert.equal((await call('PUT','/api/avatar-upload',{imageBase64:image.toString('base64')},'Avatar '+token)).status,403);
  const page=await call('GET','/avatar',undefined,null);assert.equal(page.status,200);assert.match(page.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert(!page.body.toString().includes(token));
 });
+
+test('malformed multibyte avatar signatures reject safely without an internal error',async t=>{
+ const errors=[],{call,users}=await fixture(t,{onError:e=>errors.push(e)});
+ const result=await call('GET','/api/avatars/'+users[0].id+'?grant=a.'+encodeURIComponent('я'.repeat(43)),undefined,null);
+ assert.equal(result.status,403);assert.deepEqual(errors,[]);
+});
+
+test('avatar media diagnostics distinguish malformed, expired and revoked-session links without raw tokens',async t=>{
+ const {app,call,image,begin}=await fixture(t),token=await begin();assert.equal((await call('PUT','/api/avatar-upload',{imageBase64:image.toString('base64')},'Avatar '+token)).status,200);
+ const avatar=(await call('GET','/api/me')).body.profile.avatarUrl,url=new URL(avatar),[original]=url.searchParams.get('grant').split('.'),payload=JSON.parse(Buffer.from(original,'base64url').toString());
+ url.searchParams.set('grant','bad.signature');assert.equal((await call('GET',url.toString(),undefined,null)).status,403);
+ const expired=Buffer.from(JSON.stringify({...payload,e:1})).toString('base64url'),sig=require('node:crypto').createHmac('sha256',Buffer.alloc(32,8)).update('avatar:'+expired).digest('base64url');url.searchParams.set('grant',expired+'.'+sig);assert.equal((await call('GET',url.toString(),undefined,null)).status,403);
+ await call('DELETE','/api/session');assert.equal((await call('GET',avatar,undefined,null)).status,403);
+ const rows=app.db.prepare('SELECT code,route,status FROM operational_errors ORDER BY id').all();assert.deepEqual(rows.map(r=>r.code),['media_invalid','media_expired','media_session_ended']);assert(rows.every(r=>r.route==='media'&&r.status===403));assert(!JSON.stringify(rows).includes(token));
+});

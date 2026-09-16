@@ -2,10 +2,9 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),sharp=require('sharp');
 const {hash,random,transaction}=require('./store.cjs');
 const MAX=8*1024*1024;
-function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize}){
- let conversions=0;
+function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize,transport}){
  const signature=value=>crypto.createHmac('sha256',secret).update('avatar:'+value).digest('base64url');
- const conflict=()=>fail(403,'Ссылка для аватара истекла. Откройте новую из профиля.');
+ const conflict=code=>{try{fail(403,'Ссылка для аватара истекла. Откройте новую из профиля.')}catch(error){if(code)error.code=code;throw error}};
  const rows=()=>db.prepare('DELETE FROM avatar_uploads WHERE expires_at<?').run(Date.now());
  function ticket(req){
   const token=(req.headers.authorization||'').match(/^Avatar ([A-Za-z0-9_-]{43})$/)?.[1];if(!token)conflict();
@@ -23,20 +22,20 @@ function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize})
   for(const item of Object.values(value))if(item&&typeof item==='object')decorate(item,session);
   return value;
  }
- async function upload(body,uploadTicket){
-  const encoded=body.imageBase64;
+ async function upload(body,uploadTicket,req,lease){
+  let encoded=body.imageBase64;delete body.imageBase64;
   if(typeof encoded!=='string'||encoded.length>Math.ceil(MAX/3)*4)fail(413,'Слишком большой файл.');
   const input=Buffer.from(encoded,'base64');
   if(!input.length||input.length>MAX||input.toString('base64')!==encoded)fail(400,'Фотография повреждена или не поддерживается.');
-  if(conversions>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');
-  let image;conversions++;
+  encoded=null;req.zoigramImageBytes=input.length;await lease.process();ticket(req);
+  let image;
   try{
    const pipeline=sharp(input,{limitInputPixels:32000000,failOn:'warning',animated:false}),meta=await pipeline.metadata();
    if(!['png','jpeg','webp'].includes(meta.format)||meta.pages>1||meta.width<64||meta.height<64)throw Error('Unsupported image');
    const mask=Buffer.from('<svg width="512" height="512"><circle cx="256" cy="256" r="256" fill="white"/></svg>');
    image=await pipeline.rotate().resize(512,512,{fit:'cover',position:'centre'}).ensureAlpha().composite([{input:mask,blend:'dest-in'}]).png().toBuffer();
   }catch{fail(400,'Выберите обычное фото PNG, JPEG или WebP размером от 64×64.')}
-  finally{conversions--}
+  lease.check();ticket(req);
   return transaction(db,()=>{
    const current=db.prepare('SELECT u.* FROM avatar_uploads u JOIN sessions s ON s.id=u.session_id JOIN profiles p ON p.id=s.profile_id WHERE u.token_hash=? AND u.expires_at>? AND s.expires_at>? AND p.banned=0').get(uploadTicket.token_hash,Date.now(),Date.now());
    if(!current)conflict();
@@ -58,8 +57,10 @@ function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize})
    const [file,type]=assets[p];send(res,200,fs.readFileSync(path.join(__dirname,'../avatar',file),'utf8'),type);return true;
   }
   if(p==='/api/avatar-upload'&&m==='PUT'){
-   const uploadTicket=ticket(req);limit('avatar:'+uploadTicket.profile_id,10,3600000);
-   const body=await json(req,12*1024*1024),revision=await upload(body,uploadTicket);send(res,200,{ok:true,avatarVersion:revision});return true;
+   const uploadTicket=ticket(req);res.zoigramSession={id:uploadTicket.session_id,profile_id:uploadTicket.profile_id};limit('avatar:'+uploadTicket.profile_id,10,3600000);
+   const lease=transport.admit(req,res);try{
+    const body=await json(req,12*1024*1024);ticket(req);const revision=await upload(body,uploadTicket,req,lease);send(res,200,{ok:true,avatarVersion:revision});return true;
+   }finally{lease.release();}
   }
   if(p==='/api/me/avatar-upload'&&m==='POST'){
    const s=authorize(req);limit('avatar-ticket:'+s.profile_id,15,600000);rows();
@@ -74,12 +75,12 @@ function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize})
   }
   const match=p.match(/^\/api\/avatars\/([a-f0-9-]{36})$/);
   if(m==='GET'&&match){
-   const grant=u.searchParams.get('grant')||'';if(grant.length>1000)conflict();
+   const grant=u.searchParams.get('grant')||'';if(grant.length>1000)conflict('media_invalid');
    const [payload,sig,...extra]=grant.split('.'),expected=signature(payload||'');
-   if(extra.length||!sig||sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))conflict();
-   let g;try{g=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'))}catch{conflict()}
-   if(g.a!==match[1]||typeof g.e!=='number'||g.e<Date.now())conflict();
-   const s=db.prepare('SELECT s.* FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.id=? AND s.expires_at>? AND p.banned=0').get(g.s,Date.now());if(!s)conflict();
+   if(extra.length||typeof sig!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(sig)||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))conflict('media_invalid');
+   let g;try{g=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'))}catch{conflict('media_invalid')}
+   if(!g||typeof g!=='object'||g.a!==match[1]||typeof g.e!=='number')conflict('media_invalid');if(g.e<Date.now())conflict('media_expired');
+   const s=db.prepare('SELECT s.* FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.id=? AND s.expires_at>? AND p.banned=0').get(g.s,Date.now());if(!s)conflict('media_session_ended');
    if(db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(s.profile_id,g.a,g.a,s.profile_id))fail(404,'Профиль недоступен.');
    const row=db.prepare('SELECT a.image FROM avatars a JOIN profiles p ON p.id=a.profile_id WHERE a.profile_id=? AND a.revision=? AND p.banned=0').get(g.a,g.r);if(!row)fail(404,'Фото недоступно');
    res.writeHead(200,{'Content-Type':'image/png','Content-Length':row.image.length,'Cache-Control':'private, no-store'});res.end(Buffer.from(row.image));return true;

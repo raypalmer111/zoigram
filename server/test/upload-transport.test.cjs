@@ -122,3 +122,36 @@ test('an unrelated ECONNRESET while the body is still connected is not mislabele
  req.emit('data',Buffer.from('{'));req.emit('error',original);const error=await outcome;assert.equal(error,original);assert.equal(error.status,undefined);assert.notEqual(error.code,'upload_aborted');assert.equal(transport.gate.receiving,0);
  req.closed=true;req.emit('close');for(const event of ['data','end','error','aborted','close'])assert.equal(req.listenerCount(event),0,'reader leaked '+event+' listener');
 });
+
+for(const protocol of ['legacy','resumable'])for(const change of ['logout','ban','expire']){
+ test(protocol+' rechecks authorization after body receipt when the account changes: '+change,async t=>{
+  const f=await fixture(t),job=await f.job(protocol),request=f.stream(job),incoming=await request.incoming;await until(()=>incoming.zoigramUpload,'upload did not enter its authorized body reader');
+  if(change==='logout')assert.equal((await f.call('DELETE','/api/session')).status,200);
+  else if(change==='ban')f.app.db.prepare('UPDATE profiles SET banned=1 WHERE id=?').run(job.user.id);
+  else f.app.db.prepare('UPDATE sessions SET expires_at=0 WHERE profile_id=?').run(job.user.id);
+  request.client.end(request.bytes.subarray(1));const result=await request.outcome;
+  assert.equal(result.status,401);assert.deepEqual(f.counts(),{posts:0,parts:0});assert.deepEqual(f.errors,[]);
+ });
+}
+
+for(const protocol of ['legacy','resumable'])for(const change of ['logout','ban','expire']){
+ test(protocol+' rechecks authorization after image conversion: '+change,async t=>{
+  const f=await fixture(t),job=await f.job(protocol),original=Albums.convert,entered=barrier(),release=barrier();let pending;
+  Albums.convert=async(...args)=>{entered.resolve();await release.promise;return original(...args)};
+  try{pending=f.submit(job);await entered.promise;
+   if(change==='logout')assert.equal((await f.call('DELETE','/api/session')).status,200);
+   else if(change==='ban')f.app.db.prepare('UPDATE profiles SET banned=1 WHERE id=?').run(job.user.id);
+   else f.app.db.prepare('UPDATE sessions SET expires_at=0 WHERE profile_id=?').run(job.user.id);
+   release.resolve();const result=await pending;assert.equal(result.status,401);assert.deepEqual(f.counts(),{posts:0,parts:0});assert.deepEqual(f.errors,[]);
+  }finally{release.resolve();if(pending)await pending;Albums.convert=original}
+ });
+}
+for(const phase of ['start','complete']){
+ test('resumable '+phase+' rejects a session revoked while its control body is arriving',async t=>{
+  const f=await fixture(t),job=await f.job('resumable');if(phase==='complete')assert.equal((await f.submit(job)).status,200);
+  const command={...job,method:'POST',route:phase==='start'?'/api/uploads':'/api/uploads/'+job.id+'/complete',body:phase==='start'?{requestId:crypto.randomUUID(),count:1,caption:''}:{}};
+  const request=f.stream(command),incoming=await request.incoming;await until(()=>incoming.listenerCount('data')>0,'control body reader did not start');
+  assert.equal((await f.call('DELETE','/api/session')).status,200);request.client.end(request.bytes.subarray(1));assert.equal((await request.outcome).status,401);
+  assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_sessions').get().n,1);assert.deepEqual(f.counts(),{posts:0,parts:phase==='complete'?1:0});
+ });
+}

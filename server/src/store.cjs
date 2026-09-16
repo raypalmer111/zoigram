@@ -49,7 +49,7 @@ function openStore(filename){
  CREATE INDEX IF NOT EXISTS operational_errors_time ON operational_errors(created_at);
  CREATE TABLE IF NOT EXISTS announcements(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,body TEXT NOT NULL,kind TEXT NOT NULL,active INTEGER NOT NULL,starts_at INTEGER NOT NULL,ends_at INTEGER,revision INTEGER NOT NULL,updated_at INTEGER NOT NULL);
  `);
- if(!db.prepare('PRAGMA table_info(upload_sessions)').all().some(c=>c.name==='generation')){db.exec('ALTER TABLE upload_sessions ADD COLUMN generation TEXT');db.exec('UPDATE upload_sessions SET generation=lower(hex(randomblob(16))) WHERE generation IS NULL');}
+ transaction(db,()=>{if(!db.prepare('PRAGMA table_info(upload_sessions)').all().some(c=>c.name==='generation'))db.exec('ALTER TABLE upload_sessions ADD COLUMN generation TEXT');db.exec('UPDATE upload_sessions SET generation=lower(hex(randomblob(16))) WHERE generation IS NULL');});
  // Preserve existing notification IDs and read state while adding comment alerts.
  if(!db.prepare('PRAGMA table_info(notifications)').all().some(c=>c.name==='comment_id'))transaction(db,()=>{
   const sequence=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get()?.seq||0;

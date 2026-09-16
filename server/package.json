@@ -1,6 +1,6 @@
 {
   "name": "zoigram-server",
-  "version": "0.20.1",
+  "version": "0.20.2",
   "private": true,
   "description": "Shared Zoigram community API with private username and password accounts",
   "engines": {

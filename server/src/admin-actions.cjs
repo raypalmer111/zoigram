@@ -35,7 +35,7 @@ function act(db,input,actor,ownerSteamId){
    const p=db.prepare('SELECT * FROM profiles WHERE id=?').get(target);if(!p)fail(404,'Игрок не найден.');
    if(action==='ban'&&(p.id===actor.id||(p.provider==='steam'&&p.subject===ownerSteamId)))fail(403,'Нельзя заблокировать владельца панели.');
    const banned=action==='ban'?1:0;changed=p.banned!==banned;details={publicId:p.username,name:p.display_name};
-   if(changed){db.prepare('UPDATE profiles SET banned=? WHERE id=?').run(banned,target);if(banned){db.prepare('DELETE FROM sessions WHERE profile_id=?').run(target);db.prepare('DELETE FROM admin_sessions WHERE profile_id=?').run(target)}}
+   if(changed)db.prepare('UPDATE profiles SET banned=? WHERE id=?').run(banned,target);if(banned){db.prepare('DELETE FROM sessions WHERE profile_id=?').run(target);db.prepare('DELETE FROM admin_sessions WHERE profile_id=?').run(target);db.prepare('DELETE FROM devices WHERE profile_id=?').run(target)}
   }else if(action==='delete-post'||action==='delete-comment'){
    const id=numeric(target),post=action==='delete-post';
    const row=post?db.prepare('SELECT p.id,p.profile_id,p.caption,p.bytes,a.username FROM posts p JOIN profiles a ON a.id=p.profile_id WHERE p.id=?').get(id):db.prepare('SELECT c.id,c.post_id,c.profile_id,c.text,a.username FROM comments c JOIN profiles a ON a.id=c.profile_id WHERE c.id=?').get(id);

@@ -64,3 +64,24 @@ test('ZoiMeet monitor uses owner session, rejects cross-origin access and never 
 test('unavailable ZoiMeet does not break the rest of moderation',async t=>{
  const f=await fixture(t,{zoimeetMonitor:async()=>{throw Object.assign(Error('ZoiMeet недоступен'),{status:503});}});assert.equal((await f.call('/admin/api/zoimeet')).status,503);assert.equal((await f.call('/admin/api/summary')).status,200);
 });
+
+for(const route of ['/admin/api/actions','/admin/api/announcements']){
+ test('a buffered '+route+' request cannot mutate after the moderator session was revoked',async t=>{
+  const http=require('node:http'),f=await fixture(t),state=await(await f.request('/admin/api/session',{headers:{Cookie:f.cookie}})).json();
+  const data=Buffer.from(JSON.stringify(route.endsWith('/actions')?{action:'ban',targetId:f.other.id,reason:'Stale request'}:{title:'Stale notice',body:'Must not be saved',kind:'info',active:true}));
+  let client,entered;const incoming=new Promise(resolve=>entered=resolve),listener=req=>{if(req.url===route){f.app.server.off('request',listener);entered(req)}};f.app.server.on('request',listener);
+  const response=new Promise((resolve,reject)=>{client=http.request({host:'127.0.0.1',port:f.app.server.address().port,path:route,method:'POST',headers:{Cookie:f.cookie,Origin:origin,'Content-Type':'application/json','Content-Length':data.length,'X-CSRF-Token':state.csrfToken}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));res.on('error',reject)});client.on('error',reject);client.setTimeout(4000,()=>client.destroy(Error('Admin stale-body test timeout')));client.write(data.subarray(0,data.length-1))});
+  try{const old=await incoming;assert.equal(old.complete,false);assert.equal((await f.call('/admin/api/logout',{method:'POST'})).status,200);client.end(data.subarray(data.length-1));assert.equal(await response,401);
+   assert.equal(f.app.db.prepare('SELECT banned FROM profiles WHERE id=?').get(f.other.id).banned,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM moderation').get().n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM announcements').get().n,0);
+  }finally{f.app.server.off('request',listener);client.destroy();await response.catch(()=>{})}
+ });
+}
+test('banning a player revokes approved device logins as well as existing sessions',async t=>{
+ const f=await fixture(t),deviceToken=random(),deviceHash=hash(deviceToken),flowToken=random();
+ f.app.db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at,profile_id,consumed) VALUES(?,?,?,?,0)').run(deviceHash,'A12345B678',Date.now()+60000,f.other.id);
+ f.app.db.prepare('INSERT INTO account_flows VALUES(?,?,?,?,?)').run(hash(flowToken),'device',deviceHash,null,Date.now()+60000);
+ const body={action:'ban',targetId:f.other.id,reason:'Revoke all sign-in permissions'};assert.equal((await f.call('/admin/api/actions',{body})).status,200);
+ assert.equal((await f.call('/admin/api/actions',{body:{...body,action:'unban'}})).status,200);
+ const poll=await f.request('/api/auth/poll',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceToken})});assert.equal(poll.status,410);await poll.arrayBuffer();
+ assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM devices WHERE secret_hash=?').get(deviceHash).n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM account_flows WHERE token_hash=?').get(hash(flowToken)).n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM sessions WHERE profile_id=?').get(f.other.id).n,0);
+});

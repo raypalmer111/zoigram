@@ -1,8 +1,8 @@
 # Zoigram 0.8.0 — source and build instructions
 
-Client **0.8.0** is paired with server **0.20.1** and database schema **9**. The client package is unchanged by this server-only hotfix. Update the community server before distributing this client. These are build and behavior notes, not a declaration that a particular server or distribution page has already been updated.
+Client **0.8.0** is paired with server **0.20.2** and database schema **9**. The client package is unchanged by this server-only hotfix. Update the community server before distributing this client. These are build and behavior notes, not a declaration that a particular server or distribution page has already been updated.
 
-Server 0.20.1 separates photo reception from conversion, queues completed uploads and classifies connection failures correctly. It admits up to four uploads in flight with two simultaneous image conversions. See the [server hotfix notes](https://github.com/raypalmer111/zoigram/blob/main/docs/SERVER_HOTFIX_0.20.1.md) for compatibility and validation details.
+Server 0.20.2 fixes malformed HTTP requests, access revocation during pending actions, shared photo/avatar processing, media-link diagnostics and backup-status validation. It admits up to four image requests with two simultaneous conversions. See the [server audit notes](https://github.com/raypalmer111/zoigram/blob/main/docs/SERVER_AUDIT_0.20.2.md) for findings, compatibility and validation details.
 
 ## Changes in this release
 
