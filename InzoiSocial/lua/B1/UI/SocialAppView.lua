@@ -53,7 +53,7 @@ function M.create(outer,actions,returnVisibility)
  if not ok then view:destroy();error(err)end
  function view:renderOnline(model)
   self.model=model;local mode=model.mode
-  local titles={saved=L.t('Сохранённые публикации'),search=L.t('Поиск'),post=L.t('Публикация'),editPost=L.t('Изменить подпись'),feed='Zoigram',profile=L.t('Профиль'),create=L.t('Новый пост'),comments=L.t('Комментарии'),edit=L.t('Редактировать'),setup=L.t('Настройки'),following=L.t('Подписки'),blocks=L.t('Заблокированные'),report=L.t('Жалоба'),deletePost=L.t('Публикация'),notifications=L.t('Уведомления'),conversations=L.t('Сообщения'),messages=model.selectedConversation and model.selectedConversation.displayName or L.t('Сообщения'),login='Zoigram'}
+  local titles={announcement=L.t('Объявление владельца'),saved=L.t('Сохранённые публикации'),search=L.t('Поиск'),post=L.t('Публикация'),editPost=L.t('Изменить подпись'),feed='Zoigram',profile=L.t('Профиль'),create=L.t('Новый пост'),comments=L.t('Комментарии'),edit=L.t('Редактировать'),setup=L.t('Настройки'),following=L.t('Подписки'),blocks=L.t('Заблокированные'),report=L.t('Жалоба'),deletePost=L.t('Публикация'),notifications=L.t('Уведомления'),conversations=L.t('Сообщения'),messages=model.selectedConversation and model.selectedConversation.displayName or L.t('Сообщения'),login='Zoigram'}
   self.title:SetText(titles[mode]or'Zoigram')
   local branded=mode=='feed'or mode=='login'
   self.wordmark:SetVisibility(branded and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)

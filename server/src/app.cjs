@@ -15,7 +15,7 @@ function createApp(options={}){
  db.function('zoigram_fold',{deterministic:true},value=>String(value||'').normalize('NFKC').toLowerCase());
  const local=['127.0.0.1','localhost','[::1]'].includes(new URL(origin).hostname);
  if(!local&&!origin.startsWith('https://'))throw Error('Public origin requires HTTPS');
- const budget=options.storageBytes||10*1024*1024*1024,limits=new Map();let conversions=0;
+ const budget=options.storageBytes||10*1024*1024*1024,limits=new Map(),gate={active:0};
  function limit(bucket,max,ms=60000){const t=now();let r=limits.get(bucket);if(!r||r.until<=t){r={count:0,until:t+ms};limits.set(bucket,r)}if(++r.count>max)fail(429,'Слишком много запросов. Подождите немного.');if(limits.size>20000){for(const [k,v]of limits)if(v.until<=t)limits.delete(k);if(limits.size>20000)fail(503,'Сервис занят. Попробуйте позже.')}}
  function blocked(a,b){return !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a,b,b,a)}
  function profile(id,viewer){
@@ -35,9 +35,12 @@ function createApp(options={}){
  async function json(req,max=65536){if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']||''))fail(415,'Ожидается JSON.');if(Number(req.headers['content-length']||0)>max)fail(413,'Слишком большой файл.');let n=0,chunks=[];for await(const chunk of req){n+=chunk.length;if(n>max)fail(413,'Слишком большой файл.');chunks.push(chunk)}try{const value=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value}catch{fail(400,'Не удалось прочитать запрос.')}}
  function cleanExpired(){db.prepare('DELETE FROM sessions WHERE expires_at<?').run(now());db.prepare('DELETE FROM logins WHERE expires_at<?').run(now());db.prepare('DELETE FROM devices WHERE expires_at<?').run(now());db.prepare('DELETE FROM nonces WHERE expires_at<?').run(now());db.prepare('DELETE FROM admin_sessions WHERE expires_at<?').run(now());db.prepare('DELETE FROM admin_logins WHERE expires_at<?').run(now());for(const table of ['account_links','account_flows'])db.prepare('DELETE FROM '+table+' WHERE expires_at<?').run(now());}
  const accounts=require('./accounts.cjs').createAccounts({db,origin,secret,fail,limit,json,send,authorize});
- const admin=require('./admin.cjs').createAdmin({db,origin,secret,zoimeetMonitor:options.zoimeetMonitor,ownerSteamId:options.ownerSteamId||'',ownerProfileId:options.ownerProfileId||'',accounts,storageBytes:budget,send,json,limit,onError:options.onError});
+ const operations=require('./operations.cjs').createOperations({db,budget,gate,dataDirectory:options.dataDirectory,backupDirectory:options.backupDirectory});
+ const announcements=require('./announcements.cjs').createAnnouncements({db,fail});
+ const admin=require('./admin.cjs').createAdmin({db,origin,secret,operations,announcements,zoimeetMonitor:options.zoimeetMonitor,ownerSteamId:options.ownerSteamId||'',ownerProfileId:options.ownerProfileId||'',accounts,storageBytes:budget,send,json,limit,onError:options.onError});
  const avatars=require('./avatars.cjs').createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize});
- cleanExpired();const cleaner=setInterval(cleanExpired,300000);cleaner.unref();
+ const uploads=require('./uploads.cjs').createUploads({db,budget,fail,json,send,key,text,limit,gate,postDto,visiblePost});
+ const clean=()=>{cleanExpired();uploads.clean();operations.clean()};clean();const cleaner=setInterval(clean,300000);cleaner.unref();
  async function handler(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
   const ip=options.trustProxy&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress)?String(req.headers['x-forwarded-for']||req.socket.remoteAddress).split(',').at(-1).trim():req.socket.remoteAddress;
@@ -46,11 +49,11 @@ function createApp(options={}){
   try{
    const method=req.method,p=u.pathname;
    if(await admin.handle(req,res,u,ip))return;
-   if(p.startsWith('/api/')){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, Accept-Language, X-Zoigram-Features');res.setHeader('Access-Control-Allow-Methods','GET, POST, PUT, PATCH, DELETE, OPTIONS');if(method==='OPTIONS'){res.writeHead(204);return res.end()}}
+   if(p.startsWith('/api/')){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, Accept-Language, X-Zoigram-Features, X-Zoigram-Version');res.setHeader('Access-Control-Allow-Methods','GET, POST, PUT, PATCH, DELETE, OPTIONS');if(method==='OPTIONS'){res.writeHead(204);return res.end()}}
    limit('ip:'+ip,600);if(method==='GET'&&p==='/health')return send(res,200,{ok:true,service:'Zoigram',version:require('../package.json').version});
    if(await avatars.handle(req,res,u))return;
    if(await accounts.handle(req,res,u,ip,language))return;
-    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,unreadConversations:true,photoAlbums:true,postRequestLookup:true},languages:I18n.languages,limits:{albumPhotos:Albums.MAX_PHOTOS,imageBytes:MAX_IMAGE,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
+    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,unreadConversations:true,photoAlbums:true,postRequestLookup:true,resumableUploads:true,announcements:true},languages:I18n.languages,limits:{albumPhotos:Albums.MAX_PHOTOS,imageBytes:MAX_IMAGE,uploadImageBytes:require('./uploads.cjs').MAX_INPUT,caption:2200,comment:1000,message:2000,postsPerDay:20},origin});
    if(method==='POST'&&p==='/api/auth/device'){
     limit('device:'+ip,6,600000);const deviceToken=random(),userCode=crypto.randomBytes(5).toString('hex').toUpperCase(),expiresAt=now()+600000;
     db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at) VALUES(?,?,?)').run(hash(deviceToken),userCode,expiresAt);
@@ -70,6 +73,9 @@ function createApp(options={}){
     const index=u.searchParams.get('photo')||'0';if(!/^[0-4]$/.test(index))fail(404,'Фото недоступно');const column=u.searchParams.get('size')==='thumb'?'thumbnail':'image';const row=index==='0'?db.prepare('SELECT '+column+' AS image FROM posts WHERE id=?').get(g.p):db.prepare('SELECT '+column+' AS image FROM post_photos WHERE post_id=? AND position=?').get(g.p,Number(index));if(!row)fail(404,'Фото недоступно');res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':row.image.length,'Cache-Control':'private, no-store'});return res.end(Buffer.from(row.image));
    }
    if(!p.startsWith('/api/'))fail(404,'Страница не найдена.');const s=authorize(req),uid=s.profile_id;res.zoigramSession=s;const commentAlerts=String(req.headers['x-zoigram-features']||'').split(',').map(x=>x.trim()).includes('comment-notifications');limit('user:'+uid,240);
+   if(await uploads.handle(req,res,u,s))return;
+   if(method==='POST'&&p==='/api/diagnostics'){limit('diagnostic:'+uid,12,3600000);const b=await json(req,2048);if(!require('./operations.cjs').CLIENT_CODES.has(b.code))fail(400,'Проверьте параметры запроса.');operations.record({source:'client',profileId:uid,clientVersion:req.headers['x-zoigram-version'],code:b.code,status:0,imageBytes:b.imageBytes,route:'upload'});return send(res,202,{ok:true})}
+   if(method==='GET'&&p==='/api/announcements')return send(res,200,{announcements:announcements.live()});
    if(method==='DELETE'&&p==='/api/session'){db.prepare('DELETE FROM sessions WHERE id=?').run(s.id);return send(res,200,{ok:true})}
    if(method==='GET'&&p==='/api/me')return send(res,200,{profile:profile(uid,uid)});
    if(method==='PATCH'&&p==='/api/me'){
@@ -109,31 +115,33 @@ function createApp(options={}){
    if(method==='GET'&&p==='/api/saved'){
     const before=u.searchParams.get('before');if(before&&!/^\d{1,15}$/.test(before))fail(400,'Неверная страница сохранённых публикаций.');
     const rows=db.prepare(`SELECT p.id,p.profile_id,p.caption,p.created_at,p.width,p.height,b.id bookmark_id FROM bookmarks b JOIN posts p ON p.id=b.post_id JOIN profiles a ON a.id=p.profile_id WHERE b.profile_id=? AND b.id<? AND a.banned=0 AND NOT EXISTS(SELECT 1 FROM blocks x WHERE (x.blocker_id=? AND x.blocked_id=p.profile_id) OR (x.blocker_id=p.profile_id AND x.blocked_id=?)) ORDER BY b.id DESC LIMIT 11`).all(uid,before?Number(before):Number.MAX_SAFE_INTEGER,uid,uid);
-    return send(res,200,{posts:rows.slice(0,10).map(p=>postDto(p,s)),nextCursor:rows.length>10?String(rows[9].bookmark_id):null});
+    return send(res,200,{announcements:announcements.live(),posts:rows.slice(0,10).map(p=>postDto(p,s)),nextCursor:rows.length>10?String(rows[9].bookmark_id):null});
    }
    if(method==='GET'&&p==='/api/feed'){
     const scope=u.searchParams.get('scope')||'all',author=u.searchParams.get('profile'),before=u.searchParams.get('before');if(!['all','following'].includes(scope)||before&&!/^\d{1,15}$/.test(before))fail(400,'Неверный фильтр ленты.');if(author){profile(author,uid);if(blocked(uid,author))fail(404,'Профиль недоступен.')}
     const rows=db.prepare(`SELECT p.id,p.profile_id,p.caption,p.created_at,p.width,p.height FROM posts p JOIN profiles a ON a.id=p.profile_id WHERE a.banned=0 AND p.id<? AND (? IS NULL OR p.profile_id=?) AND (?='all' OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.following_id=p.profile_id)) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.profile_id) OR (b.blocker_id=p.profile_id AND b.blocked_id=?)) ORDER BY p.id DESC LIMIT 11`).all(before?Number(before):Number.MAX_SAFE_INTEGER,author,author,scope,uid,uid,uid);
-    return send(res,200,{posts:rows.slice(0,10).map(p=>postDto(p,s)),nextCursor:rows.length>10?String(rows[9].id):null});
+    return send(res,200,{announcements:announcements.live(),posts:rows.slice(0,10).map(p=>postDto(p,s)),nextCursor:rows.length>10?String(rows[9].id):null});
    }
        const requestPost=p.match(/^\/api\/posts\/request\/([a-zA-Z0-9_-]{8,100})$/);
     if(method==='GET'&&requestPost){const row=db.prepare('SELECT id FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestPost[1]);return send(res,200,{found:!!row,...(row?{post:postDto(visiblePost(row.id,uid),s)}:{})})}
     if(method==='POST'&&p==='/api/posts'){
-     limit('upload:'+uid,30,3600000);if(conversions>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');conversions++;
+     limit('upload:'+uid,30,3600000);if(gate.active>=2)fail(503,'Сервис обрабатывает фотографии. Попробуйте через несколько секунд.');gate.active++;
      try{
       const b=await json(req,Albums.MAX_BODY),requestId=key(b.requestId),caption=text(b.caption||'',2200),{inputs,digest}=Albums.decode(b,caption,fail);
+      req.zoigramImageBytes=inputs.reduce((n,p)=>n+p.length,0);
       const previous=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);
       if(previous){if(previous.payload_hash!==digest)fail(409,'Этот запрос уже использован для другого поста.');return send(res,200,{post:postDto(visiblePost(previous.id,uid),s),repeated:true})}
       if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');
       const photos=await Albums.convert(inputs,fail),bytes=photos.reduce((n,p)=>n+p.bytes,0),cover=photos[0];
       const postId=transaction(db,()=>{
+       if(db.prepare('SELECT 1 FROM upload_sessions WHERE profile_id=? AND request_id=? AND (post_id IS NOT NULL OR expires_at>?)').get(uid,requestId,now()))fail(409,'Этот запрос уже использован для другого поста.');
        const same=db.prepare('SELECT id,payload_hash FROM posts WHERE profile_id=? AND request_id=?').get(uid,requestId);if(same){if(same.payload_hash!==digest)fail(409,'Идентификатор запроса уже использован.');return same.id}
        if(db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=? AND created_at>?').get(uid,now()-86400000).n>=20)fail(429,'Достигнут лимит публикаций на сегодня.');
-       const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n;if(used+bytes>budget)fail(507,'Хранилище заполнено. Владелец сервера уже может освободить место.');
+       const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars)+(SELECT COALESCE(SUM(bytes),0) FROM upload_parts) n').get().n;if(used+bytes>budget)fail(507,'Хранилище заполнено. Владелец сервера уже может освободить место.');
        const id=Number(db.prepare('INSERT INTO posts(profile_id,request_id,payload_hash,caption,created_at,width,height,image,thumbnail,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)').run(uid,requestId,digest,caption,now(),cover.width,cover.height,cover.image,cover.thumbnail,bytes).lastInsertRowid);
        const insert=db.prepare('INSERT INTO post_photos VALUES(?,?,?,?,?,?,?)');photos.slice(1).forEach((p,i)=>insert.run(id,i+1,p.width,p.height,p.image,p.thumbnail,p.bytes));return id;
       });return send(res,201,{post:postDto(visiblePost(postId,uid),s)});
-     }finally{conversions--}
+     }finally{gate.active--}
     }
 const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
    if(postRoute){const id=Number(postRoute[1]),action=postRoute[2],post=visiblePost(id,uid);
@@ -173,7 +181,7 @@ const postRoute=p.match(/^\/api\/posts\/(\d+)(?:\/(like|comments|save))?$/);
     limit('report:'+uid,10,3600000);const b=await json(req),reason=text(b.reason||'',500,true),kind=b.kind,target=String(b.targetId);if(!['post','comment','profile'].includes(kind))fail(400,'Неверный тип жалобы.');if(kind==='post')visiblePost(Number(target),uid);if(kind==='profile')profile(target,uid);if(kind==='comment'){const c=db.prepare('SELECT post_id FROM comments WHERE id=?').get(Number(target));if(!c)fail(404,'Комментарий не найден.');visiblePost(c.post_id,uid)}db.prepare('INSERT OR IGNORE INTO reports(profile_id,kind,target_id,reason,created_at) VALUES(?,?,?,?,?)').run(uid,kind,target,reason,now());return send(res,201,{ok:true});
    }
    fail(404,'Действие не найдено.');
-  }catch(e){const status=e.status||500;if(status===429)res.setHeader('Retry-After','60');if(!e.status&&options.onError)options.onError(e);if(!res.headersSent){const key=status===500?'Ошибка сервера. Попробуйте позже.':e.message;const error=I18n.t(language,key);if(u.pathname.startsWith('/api/'))send(res,status,{error,messageKey:key});else send(res,status,page('Zoigram','<p>'+escape(error)+'</p>',language),'text/html')}else res.end()}
+  }catch(e){const status=e.status||500;const errorId=operations.capture(req,res,u,status);if(status===429)res.setHeader('Retry-After','60');if(!e.status&&options.onError)options.onError(e);if(!res.headersSent){const key=status===500?'Ошибка сервера. Попробуйте позже.':e.message;const error=I18n.t(language,key);if(u.pathname.startsWith('/api/'))send(res,status,{error,messageKey:key,...(errorId?{errorId}:{})});else send(res,status,page('Zoigram','<p>'+escape(error)+'</p>',language),'text/html')}else res.end()}
  }
  const server=http.createServer(handler);server.requestTimeout=120000;server.headersTimeout=15000;server.keepAliveTimeout=5000;
  let closing;

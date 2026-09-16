@@ -1762,5 +1762,161 @@
     "Discard draft",
     "Supprimer le brouillon",
     "초안 삭제"
+  ],
+  [
+    "Загрузка истекла. Повторите отправку.",
+    "The upload expired. Please try again.",
+    "Le transfert a expiré. Réessayez.",
+    "업로드가 만료되었습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Недостаточно места для временной загрузки. Повторите позже.",
+    "Temporary upload storage is full. Please try again later.",
+    "Le stockage temporaire est plein. Réessayez plus tard.",
+    "임시 업로드 공간이 부족합니다. 나중에 다시 시도해 주세요."
+  ],
+  [
+    "Завершите предыдущую загрузку или повторите позже.",
+    "Finish an existing upload or try again later.",
+    "Terminez un transfert en cours ou réessayez plus tard.",
+    "진행 중인 업로드를 완료하거나 나중에 다시 시도해 주세요."
+  ],
+  [
+    "Публикация уже отправлена.",
+    "This post has already been published.",
+    "Cette publication a déjà été envoyée.",
+    "이미 게시된 게시물입니다."
+  ],
+  [
+    "Фото должно быть не больше 25 МБ.",
+    "Each photo must be no larger than 25 MB.",
+    "Chaque photo doit faire au maximum 25 Mo.",
+    "사진 한 장은 25MB 이하여야 합니다."
+  ],
+  [
+    "Снимок уже загружен с другим содержимым.",
+    "A different photo was already uploaded to this slot.",
+    "Une autre photo a déjà été transférée à cet emplacement.",
+    "이 위치에 다른 사진이 이미 업로드되었습니다."
+  ],
+  [
+    "Не все фотографии загружены. Повторите отправку.",
+    "Some photos are still missing. Retry the upload.",
+    "Il manque des photos. Réessayez le transfert.",
+    "일부 사진이 아직 업로드되지 않았습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Проверьте параметры запроса.",
+    "Check the request parameters.",
+    "Vérifiez les paramètres de la requête.",
+    "요청 내용을 확인해 주세요."
+  ],
+  [
+    "Исходное фото слишком большое. Максимум — 64 МБ.",
+    "The original photo is too large. Maximum: 64 MB.",
+    "La photo originale est trop volumineuse. Maximum : 64 Mo.",
+    "원본 사진이 너무 큽니다. 최대 크기: 64MB."
+  ],
+  [
+    "Не удалось уменьшить фото. Попробуйте сделать новый снимок.",
+    "Could not resize the photo. Please try taking a new one.",
+    "Impossible de réduire la photo. Essayez de prendre une nouvelle photo.",
+    "사진 크기를 줄이지 못했습니다. 새 사진을 찍어 주세요."
+  ],
+  [
+    "Возобновление загрузки…",
+    "Checking upload progress…",
+    "Vérification du transfert…",
+    "업로드 진행 상황 확인 중…"
+  ],
+  [
+    "Публикация альбома…",
+    "Publishing album…",
+    "Publication de l’album…",
+    "앨범 게시 중…"
+  ],
+  [
+    "Не удалось сохранить настройки объявления.",
+    "Could not save announcement preferences.",
+    "Impossible d’enregistrer les préférences d’annonce.",
+    "공지 설정을 저장하지 못했습니다."
+  ],
+  [
+    "Технические работы",
+    "Maintenance",
+    "Maintenance",
+    "점검 안내"
+  ],
+  [
+    "Обновление Zoigram",
+    "Zoigram update",
+    "Mise à jour de Zoigram",
+    "Zoigram 업데이트"
+  ],
+  [
+    "Объявление владельца",
+    "Community announcement",
+    "Annonce de la communauté",
+    "커뮤니티 공지"
+  ],
+  [
+    "Подробнее",
+    "Read more",
+    "En savoir plus",
+    "자세히 보기"
+  ],
+  [
+    "Скрыть",
+    "Dismiss",
+    "Masquer",
+    "숨기기"
+  ],
+  [
+    "Проверьте параметры объявления.",
+    "Check the announcement settings.",
+    "Vérifiez les paramètres de l’annonce.",
+    "공지 설정을 확인해 주세요."
+  ],
+  [
+    "Проверьте даты объявления.",
+    "Check the announcement dates.",
+    "Vérifiez les dates de l’annonce.",
+    "공지 날짜를 확인해 주세요."
+  ],
+  [
+    "Объявление не найдено.",
+    "Announcement not found.",
+    "Annonce introuvable.",
+    "공지를 찾을 수 없습니다."
+  ],
+  [
+    "Объявление изменено. Обновите страницу.",
+    "The announcement changed. Refresh the page.",
+    "L’annonce a changé. Actualisez la page.",
+    "공지가 변경되었습니다. 페이지를 새로 고침해 주세요."
+  ],
+  [
+    "Измените существующее объявление: достигнут лимит 100 записей.",
+    "Edit an existing announcement: the 100-entry limit has been reached.",
+    "Modifiez une annonce existante : la limite de 100 annonces est atteinte.",
+    "공지 100개 한도에 도달했습니다. 기존 공지를 수정해 주세요."
+  ],
+  [
+    "Загрузка изменена. Повторите отправку.",
+    "The upload changed. Please retry.",
+    "Le transfert a changé. Réessayez.",
+    "업로드가 변경되었습니다. 다시 시도해 주세요."
+  ],
+  [
+    "Метод не поддерживается.",
+    "Method not allowed.",
+    "Méthode non autorisée.",
+    "허용되지 않는 요청 방식입니다."
+  ],
+  [
+    "Назад",
+    "Back",
+    "Retour",
+    "뒤로"
   ]
 ]

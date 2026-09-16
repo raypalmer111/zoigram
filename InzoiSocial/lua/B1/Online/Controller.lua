@@ -3,6 +3,7 @@ local Transport=require('B1.Online.Transport')
 local Photo=require('B1.Game.PhotoFlow')
 local MessageDrafts=require('B1.Data.MessageDrafts')
 local M={};M.__index=M
+require('B1.Online.Announcements').attach(M,Transport)
 function M.new(app)
  local config=Transport.read('config')or{};L.set('auto')
  return setmetatable({app=app,transport=Transport.new(),server=Transport.server(config.server)or'https://vps-24654da6.vps.ovh.net',mode='setup',scope='all',posts={},comments={},notifications={},conversations={},messages={},history={},tab='feed',revision=0,elapsed=0,activityElapsed=20,unreadNotifications=0,unreadMessages=0},M)
@@ -57,7 +58,7 @@ function M:feed(scope,more)
  local path='/api/feed?scope='..self.scope;if more and self.cursor then path=path..'&before='..self.cursor end
  self:request('GET',path,nil,function(r)
   if more then for _,post in ipairs(r.posts or{})do self.posts[#self.posts+1]=post end else self.posts=r.posts or{}end
-  self.cursor=r.nextCursor
+  self.cursor=r.nextCursor;self.announcements=r.announcements or{}
  end)
 end
 function M:saved(more)
@@ -183,6 +184,7 @@ end
 function M:act(action,value)
  if self.transport.pending then return end
  if self:saveDraft()==false then self:draw();return true end;self.error=nil;self.notice=nil
+  if self:announcementAction(action,value)then return end
   if self:albumAction(action,value)then return end
   if action=='language'then L.set(value);self:saveConfig();self:draw()
  elseif action=='back'then self:back()

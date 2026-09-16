@@ -92,7 +92,7 @@ function M.attach(C,Transport,Photo)
   end
   d.onlineRequest=d.onlineRequest or Transport.nonce();d.pending=true
   if not self:persistPublication(d)then d.pending=false;self:draw();return end
-  self:request('POST','/api/posts',{requestId=d.onlineRequest,caption=d.caption},function(r)
+  self:request('POST','/api/posts',{requestId=d.onlineRequest,caption=d.caption,resumable=self.info and self.info.features and self.info.features.resumableUploads==true},function(r)
    if type(r.post)~='table'or not r.post.id then self.error='Сервер вернул непонятный ответ.';return end
    self:publicationDone(d)
   end,files)

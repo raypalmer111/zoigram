@@ -4,9 +4,9 @@ const source=fs.readFileSync('InzoiSocial/ui/OnlineBridge/app.js','utf8');
 const encode=v=>Buffer.from(JSON.stringify(v)).toString('hex'),decode=v=>JSON.parse(Buffer.from(v,'hex'));
 async function fixture({session,route=()=>({status:200,body:{ok:true}}),previous}={}){
  const config={session:encode(session||{}),response:encode(previous||{})},calls=[],timers=new Map();let ready,tick,next=0;
- class XHR{open(method,url){this.method=method;this.url=url;this.headers={};this.upload={}}setRequestHeader(k,v){this.headers[k]=v}abort(){this.aborted=true}send(body){this.body=body;calls.push(this);const r=route(this);if(r===null)return;this.status=r.status;this.response=r.raw;this.responseText=r.text!==undefined?r.text:JSON.stringify(r.body);if(this.upload.onprogress)this.upload.onprogress({lengthComputable:true,loaded:50,total:100});queueMicrotask(()=>this.onload())}}
+ class XHR{open(method,url){this.method=method;this.url=url;this.headers={};this.upload={}}setRequestHeader(k,v){this.headers[k]=v}abort(){this.aborted=true}send(body){this.body=body;calls.push(this);const r=route(this);if(r===null)return;this.status=r.status;this.response=r.raw;this.responseText=r.text!==undefined?r.text:JSON.stringify(r.body);if(this.upload.onprogress)this.upload.onprogress({lengthComputable:true,loaded:50,total:100});queueMicrotask(()=>{if(r.error){if(this.onerror)this.onerror();}else if(this.onload)this.onload();})}}
  const context={window:{inzoi:{cli:{execute:async(name,args)=>{if(name==='uimod.cfg_load')return {success:true,data:{value:config[args.key]}};config[args.key]=args.value;return {success:true,data:{saved:true}}}}}},engine:{on:(event,fn)=>{ready=fn}},XMLHttpRequest:XHR,Uint8Array,Date,JSON,Promise,Error,escape,unescape,encodeURIComponent,decodeURIComponent,setInterval:fn=>{tick=fn},setTimeout:fn=>{timers.set(++next,fn);return next},clearTimeout:id=>timers.delete(id)};
- vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/locales.js','utf8'),context);vm.runInNewContext(source,context);await ready();await new Promise(setImmediate);
+ vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/locales.js','utf8'),context);vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/photos.js','utf8'),context);vm.runInNewContext(source,context);await ready();await new Promise(setImmediate);
  return {config,calls,timers,run:async(job)=>{config.request=encode({id:String(++next),createdAt:Date.now()/1000,method:'GET',server:'http://127.0.0.1:43821',path:'/api/me',...job});await tick();return decode(config.response)},start:job=>{config.request=encode({id:'timeout-job',createdAt:Date.now()/1000,server:'http://127.0.0.1:43821',...job});return tick()},tick};
 }
 const session={server:'http://127.0.0.1:43821',token:'test-token',expiresAt:Date.now()+600000};
@@ -68,4 +68,59 @@ test('local photo errors remain distinct from server errors and never send a par
 });
 test('non-JSON HTTP failures keep their status and do not show HTML; malformed success is uncertain',async()=>{
  for(const status of [413,429,502,200]){const f=await fixture({session,route:()=>({status,text:'<html>proxy response</html>'})});const r=await f.run({});assert.equal(r.status,status===200?0:status);assert(!r.body.error.includes('<html>'));if(status===502)assert.equal(r.body.messageKey,'Сервер временно недоступен. Повторите отправку.')}
+});
+
+const resumedFiles=Array.from({length:5},(_,i)=>'outgoing_'+(i+1)+'.png');
+const resumedJob={method:'POST',path:'/api/posts',language:'en',upload:resumedFiles,body:{requestId:'resumable-stable-080',caption:'Five views 🌆',resumable:true}};
+function localPhoto(url){return Uint8Array.from({length:64},()=>Number(url.match(/_(\d)/)[1])).buffer;}
+test('resumable albums read and send only missing parts, then complete exactly once',async()=>{
+ const f=await fixture({session,route:x=>{
+  if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+  if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[0,1]}};
+  if(x.url.endsWith('/complete'))return {status:201,body:{post:{id:81}}};
+  return {status:200,body:{ok:true}};
+ }});
+ const result=await f.run(resumedJob);assert.equal(result.status,201);assert.equal(result.body.post.id,81);
+ assert.deepEqual(f.calls.filter(x=>x.url.startsWith('uploads/')).map(x=>x.url),['uploads/outgoing_3.png','uploads/outgoing_4.png','uploads/outgoing_5.png']);
+ const parts=f.calls.filter(x=>x.method==='PUT');assert.deepEqual(parts.map(x=>Number(x.url.split('/').at(-1))),[2,3,4]);parts.forEach((part,i)=>{assert.equal(Buffer.from(JSON.parse(part.body).imageBase64,'base64')[0],i+3);assert.equal(part.headers.Authorization,'Bearer test-token');});
+ assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);assert.deepEqual(JSON.parse(f.calls[0].body),{requestId:resumedJob.body.requestId,caption:'Five views 🌆',count:5});await f.tick();assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);
+});
+for(const failure of ['http','network'])test('a '+failure+' part failure stops completion and retry skips confirmed parts with the same request ID',async()=>{
+ const received=new Set();let fail=true;
+ const f=await fixture({session,route:x=>{
+  if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+  if(x.url.endsWith('/api/diagnostics'))return {status:200,body:{ok:true}};
+  if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[...received]}};
+  if(x.url.endsWith('/complete'))return {status:201,body:{post:{id:82}}};
+  const index=Number(x.url.split('/').at(-1));if(index===1&&fail){fail=false;return failure==='network'?{error:true}:{status:503,body:{error:'Please retry'}};}
+  received.add(index);return {status:200,body:{ok:true}};
+ }});
+ const first=await f.run(resumedJob);assert.equal(first.status,failure==='network'?0:503);assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,0);assert.deepEqual([...received],[0]);
+ const boundary=f.calls.length,second=await f.run(resumedJob);assert.equal(second.status,201);
+ const retried=f.calls.slice(boundary);assert.deepEqual(retried.filter(x=>x.url.startsWith('uploads/')).map(x=>x.url),['uploads/outgoing_2.png','uploads/outgoing_3.png','uploads/outgoing_4.png','uploads/outgoing_5.png']);assert(!retried.some(x=>x.method==='PUT'&&x.url.endsWith('/0')));
+ assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);for(const begin of f.calls.filter(x=>x.url.endsWith('/api/uploads')))assert.equal(JSON.parse(begin.body).requestId,resumedJob.body.requestId);assert.equal(decode(f.config.session).token,'test-token');
+});
+test('an already completed resumable request returns its post without reading local files or completing again',async()=>{
+ const f=await fixture({session,route:()=>({status:200,body:{post:{id:83}}})});const result=await f.run(resumedJob);
+ assert.equal(result.status,200);assert.equal(result.body.post.id,83);assert.equal(f.calls.length,1);assert(f.calls[0].url.endsWith('/api/uploads'));
+});
+for(const rejectedStage of ['begin','part','complete'])test('HTTP 401 during resumable '+rejectedStage+' clears persisted and in-memory authentication',async()=>{
+ const f=await fixture({session,route:x=>{
+  if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+  const stage=x.url.endsWith('/api/uploads')?'begin':x.url.endsWith('/complete')?'complete':'part';
+  if(stage===rejectedStage)return {status:401,body:{error:'Sign in again'}};
+  return {status:200,body:stage==='begin'?{received:rejectedStage==='complete'?[0,1,2,3,4]:[]}:{ok:true}};
+ }});
+ const result=await f.run(resumedJob);assert.equal(result.status,401);assert.deepEqual(decode(f.config.session),{});const count=f.calls.length;assert.equal((await f.run({})).status,401);assert.equal(f.calls.length,count);
+});
+test('non-JSON proxy 413 reports 25 MiB for a resumable part and retains 8 MiB for legacy uploads',async()=>{
+ for(const resumable of [true,false]){
+  const f=await fixture({session,route:x=>{
+   if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+   if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[]}};
+   return {status:413,text:'<html>Payload too large</html>'};
+  }});
+  const result=await f.run({...resumedJob,upload:['outgoing_1.png'],body:{...resumedJob.body,resumable}});
+  assert.equal(result.status,413);assert.equal(result.body.messageKey,resumable?'Фото должно быть не больше 25 МБ.':'Фото должно быть не больше 8 МБ.');assert(!result.body.error.includes('<html>'));
+ }
 });

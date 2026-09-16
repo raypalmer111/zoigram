@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {buildNative}=require('./bundle-native.cjs');
 const root=path.resolve(__dirname,'..'),defaultModId='InzoiSocial_YV6DPJ';
 const publication='publication/nexus-'+JSON.parse(fs.readFileSync(path.join(root,'package.json'))).version;
-const uiFiles=['app.js','index.html','locales.js','uimod_manifest.json','uploads/.keep'];
+const uiFiles=['photos.js','app.js','index.html','locales.js','uimod_manifest.json','uploads/.keep'];
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function walk(directory){
  return fs.readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name)).flatMap(entry=>{
@@ -35,7 +35,7 @@ function sourcePackage(destination){
  const fixed=['package.json','InzoiSocial/mod_manifest.json','InzoiSocial/InzoiSocial.uplugin','InzoiSocial/obsolete-files.json','InzoiSocial/assets/instagram-icon.png',
   'tools/bundle-native.cjs','tools/package-nexus.cjs','tools/build-locales.cjs','tools/zip-directory.cjs','locales/messages.de.json','locales/messages.zh.json','tools/build-ui-glyphs.cjs','tools/Install-Native.ps1','locales/messages.json',
   publication+'/INSTALL.txt',publication+'/REVIEW.md',
-  'tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs','tests/zip-directory.test.cjs',
+  'tests/photos.test.cjs','tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs','tests/zip-directory.test.cjs',
   'docs/ACCOUNTS.md','docs/ADMIN.md','server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
   'server/deploy/compose.yaml','server/deploy/Caddyfile','server/deploy/.env.example','server/deploy/preflight.cjs'];
  const dirs=['InzoiSocial/lua','server/src','server/admin','server/avatar','server/tools','server/test'];

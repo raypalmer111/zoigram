@@ -25,7 +25,7 @@ function M:send(server,method,path,body,callback,upload)
  local job={id=M.nonce(),createdAt=os.time(),server=server,method=method,path=path,body=body,upload=upload,language=L.language}
  local ok,err=pcall(M.write,'request',job)
  if not ok then callback(0,{error='Не удалось отправить запрос из игры.'});return false end
- self.pending={id=job.id,callback=callback,started=os.time(),timeout=upload and 300 or 40};return true
+ self.pending={id=job.id,callback=callback,started=os.time(),timeout=upload and 900 or 40};return true
 end
 function M:tick(dt)
  if not self.pending then return end;self.elapsed=self.elapsed+(dt or 0);if self.elapsed<.25 then return end;self.elapsed=0

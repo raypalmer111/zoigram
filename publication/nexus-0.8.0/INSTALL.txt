@@ -1,0 +1,198 @@
+Zoigram 0.8.0 — manual installation
+Requires a Zoigram server running 0.20.0 or newer with password authentication.
+Do not distribute this client before your community server has been updated.
+
+ENGLISH
+Close inZOI and extract the ZIP. Copy the entire InzoiSocial_YV6DPJ folder to your
+Windows Documents\inZOI\Mods\InGame folder; keep the exact folder name.
+For an update, remove ONLY the old lua and ui subfolders inside this mod folder,
+then copy the new files with replacement. Keep online and assets: they contain
+your saved session, settings and local photos. Enable one copy of Zoigram.
+
+Open Zoigram > Sign in / create account. Confirm the code shown in the game,
+then choose your private login and password in the browser. No email or Steam
+connection is required. Save the one-time recovery code somewhere private.
+Passwords are 15–128 characters; a long phrase is supported. A login uses
+3–32 Latin letters, digits or underscores. Other players see your assigned
+public ID, not your private login. Only the moderator can change the public ID.
+Existing players: keep your saved session and go to Profile > Edit profile >
+Sign-in and recovery BEFORE signing out to attach credentials to the same profile.
+If your old session expired before setup, contact the owner; creating another
+account will not recover your old posts. Recovery requires the saved recovery code.
+Without a password and recovery code, automatic recovery is not available.
+
+Internet access is required to exchange posts, avatars, comments, likes,
+follows, reports and private messages with the community server.
+Use + to publish a Photo Mode image. Profile > Edit profile lets you upload
+your own avatar. The heart opens notifications; the envelope opens messages.
+No EXE, DLL, installer script, nested ZIP or server files are in this player ZIP.
+
+РУССКИЙ
+Закройте inZOI. Распакуйте ZIP и скопируйте папку InzoiSocial_YV6DPJ целиком в
+Документы\inZOI\Mods\InGame. Название папки менять нельзя.
+При обновлении удалите ТОЛЬКО старые подпапки lua и ui внутри папки мода,
+затем скопируйте новые файлы с заменой. Сохраните online и assets:
+в них находятся сеанс, настройки и локальные фото. Включите одну копию Zoigram.
+В приложении нажмите «Войти / создать аккаунт», сверьте код с игрой и создайте
+логин с паролем в браузере. Почта и Steam не нужны. Сохраните резервный код.
+Пароль: 15–128 символов; логин: 3–32 латинские буквы, цифры или _.
+Другие игроки видят назначенный публичный ID; менять его может только модератор.
+Старый аккаунт: до выхода откройте Профиль → Редактировать → Вход и восстановление.
+Публикации и ID сохранятся. Если старый сеанс уже истёк, обратитесь к владельцу.
+Новая регистрация не восстановит старый профиль. Без пароля и резервного кода
+автоматического восстановления нет. Сервер должен быть обновлён до 0.20.0.
+Интернет нужен для публикаций и общения. Установщик запускать не нужно.
+
+FRANÇAIS
+Fermez inZOI. Copiez le dossier InzoiSocial_YV6DPJ dans
+Documents\inZOI\Mods\InGame, sans le renommer.
+Pour mettre à jour, supprimez uniquement les anciens sous-dossiers lua et ui,
+puis copiez les nouveaux fichiers. Conservez online et assets.
+Dans Zoigram, ouvrez la connexion, vérifiez le code du jeu et choisissez un
+identifiant privé et un mot de passe dans le navigateur. Aucun e-mail ni Steam.
+Conservez le code de récupération : sans mot de passe ni code, la récupération
+automatique est impossible. Mot de passe : 15–128 caractères.
+Votre identifiant public reste distinct et seul le modérateur peut le modifier.
+Ancien compte : configurez la connexion dans la modification du profil AVANT
+de vous déconnecter. Les publications et l'identifiant public sont conservés.
+Si la session a expiré, contactez le propriétaire. Internet et serveur 0.20.0 requis.
+
+한국어
+inZOI를 종료하세요. InzoiSocial_YV6DPJ 폴더를 이름 변경 없이
+문서\inZOI\Mods\InGame에 복사하세요.
+업데이트할 때 기존 모드의 lua와 ui 하위 폴더만 삭제하고 새 파일을 복사하세요.
+세션, 설정, 사진이 있는 online과 assets 폴더는 유지하세요.
+Zoigram에서 로그인을 열고 게임의 코드를 확인한 뒤 브라우저에서
+로그인 아이디와 비밀번호를 만드세요. 이메일과 Steam 연결은 필요하지 않습니다.
+비밀번호는 15–128자입니다. 복구 코드를 안전하게 보관하세요.
+비밀번호와 복구 코드를 모두 잃으면 자동 복구가 불가능합니다.
+공개 ID는 로그인 아이디와 다르며 운영자만 변경할 수 있습니다.
+기존 계정은 로그아웃하기 전에 프로필 편집에서 로그인 및 복구를 설정하세요.
+게시물과 공개 ID는 유지됩니다. 세션이 만료되었다면 운영자에게 문의하세요.
+인터넷 연결과 서버 버전 0.20.0 이상이 필요합니다.
+
+Version 0.8.0: English, Russian, French, Korean, German and Simplified Chinese.
+The app automatically uses your game language (English for unsupported languages).
+Tap the bookmark below a post; find saved posts in Profile > Settings > Saved posts.
+Saved posts are private. New comments on your posts appear in Notifications.
+Messages > Send location currently displays Coming soon. No location is sent.
+Sign-in pages in the browser remain in English.
+
+DEUTSCH
+Schließe inZOI und entpacke die ZIP-Datei. Kopiere den gesamten Ordner
+InzoiSocial_YV6DPJ nach Dokumente\inZOI\Mods\InGame. Benenne ihn nicht um.
+Entferne bei einem Update nur die alten Unterordner lua und ui dieses Mods.
+Kopiere dann die neuen Dateien. Behalte online und assets mit deinen
+Einstellungen, deiner Sitzung und deinen Fotos. Aktiviere nur eine Mod-Kopie.
+Zoigram verwendet automatisch die Spielsprache. Die Anmeldung im Browser ist
+auf Englisch. E-Mail und Steam sind nicht erforderlich. Bewahre deinen
+Wiederherstellungscode sicher auf. Internet und Server 0.20.0 sind erforderlich.
+Tippe auf das Lesezeichen, um einen Beitrag privat zu speichern. Gespeicherte
+Beiträge findest du unter Profil > Einstellungen > Gespeicherte Beiträge.
+Neue Kommentare erscheinen in den Benachrichtigungen. Standort senden zeigt
+vorerst Coming soon an und überträgt keinen Standort.
+
+简体中文
+关闭 inZOI 并解压 ZIP，将整个 InzoiSocial_YV6DPJ 文件夹复制到
+文档\inZOI\Mods\InGame，不要更改文件夹名称。
+更新时，只删除此模组文件夹内旧的 lua 和 ui 子文件夹，再复制新文件覆盖。
+保留 online 和 assets，其中保存了登录状态、设置及本地照片。只启用一份模组。
+应用自动跟随游戏语言，浏览器登录页面仍使用英语。无需邮箱或 Steam。
+请妥善保存恢复代码。需要互联网连接及 0.20.0 或更新版本的服务器。
+点击帖子下方的书签即可收藏，在“个人主页 > 设置 > 收藏”查看。收藏仅自己可见。
+帖子收到新评论时会显示通知。私信中的“发送位置”暂时只显示 Coming soon，
+不会获取或发送任何位置。
+
+Messages have All / Unread filters. Message drafts are saved locally
+for up to 20 recent chats and restored after restart. Signing out clears drafts.
+Keep the online folder when updating. Drafts are not sent until you press Send.
+
+В переписке есть фильтры «Все» / «Непрочитанные». Черновики до
+20 последних чатов сохраняются локально и восстанавливаются после перезапуска.
+Выход из аккаунта очищает черновики. При обновлении сохраните папку online.
+
+NEW IN 0.8.0 — PHOTO UPLOADS
+Albums still contain up to 5 photos. Choose their order and cover in the editor.
+Source photo files can be up to 64 MiB. With canvas/JPEG support in the game's
+browser runtime, preparation supports up to 64 million pixels and creates
+a JPEG copy with a maximum edge of 2048 pixels. For an original larger than
+2048 pixels on either side, the resized copy is used even if its file size grows.
+For smaller dimensions, the original is kept if JPEG would be larger.
+Your original local photograph is preserved. After preparation, each transmitted
+image must fit the 25 MiB limit of server 0.20.0's resumable upload protocol.
+If canvas encoding is unavailable, an original can be sent only when it fits
+the protocol limit and server validation: PNG/JPEG/WebP, one frame, 64 x 64
+pixels minimum and 32 million pixels maximum. Otherwise, take a smaller photo.
+Older clients using the legacy upload endpoint still have an 8 MiB limit.
+These limits concern publication photos; avatar limits are separate.
+MiB means 1,048,576 bytes. No unlimited uploads are offered.
+
+If a connection fails, keep the draft and use Retry. Photos already accepted
+by the server are retained for up to 24 hours and skipped on retry. An interrupted
+individual photo starts again; the post appears only after the full album arrives.
+
+The owner can now see upload errors, disk/quota/memory status, active uploads,
+backup results and separate restore-test results in the private panel. Scheduled
+owner announcements appear in supported game clients and can be dismissed locally.
+Diagnostics send only a bounded error category, mod version and available image
+size/status information, not passwords, tokens or arbitrary local files.
+
+НОВОЕ В 0.8.0 — ЗАГРУЗКА ФОТО
+В альбоме до 5 фото; порядок и обложка выбираются в редакторе.
+Исходный файл — до 64 МиБ. Если игровой браузер поддерживает canvas/JPEG,
+снимок до 64 миллионов пикселей подготавливается как JPEG с длинной стороной
+до 2048 пикселей. Если любая сторона исходника больше 2048 пикселей, используется JPEG-копия,
+даже если байтов стало больше. При меньших размерах исходник сохраняется,
+если JPEG занимает больше места.
+Оригинальное локальное фото сохраняется. После подготовки передаваемое
+изображение должно быть не больше 25 МиБ для нового протокола сервера 0.20.0.
+Без canvas отправляется исходник, только если он укладывается в этот лимит
+и требования сервера: PNG/JPEG/WebP, один кадр, от 64 x 64 пикселей
+и не более 32 миллионов пикселей. Иначе сделайте снимок меньшего размера.
+Старые клиенты со старым способом загрузки сохраняют ограничение 8 МиБ.
+Это ограничения публикаций; у аватаров отдельные лимиты. 1 МиБ = 1 048 576 байт.
+При обрыве связи сохраните черновик и нажмите «Повторить». Принятые фотографии
+хранятся до 24 часов и повторно не передаются; прерванный отдельный снимок
+загружается заново. Пост появляется после получения всего альбома.
+У владельца в панели доступны ошибки загрузок, место/квота/память, текущие
+загрузки, результаты резервных копий и отдельных проверок восстановления.
+Объявления владельца с расписанием видны в игре; их можно скрывать локально.
+
+FRANÇAIS — PHOTOS 0.8.0
+Source : jusqu'à 64 Mio. Avec canvas/JPEG : jusqu'à 64 millions de pixels,
+copie JPEG de 2048 pixels maximum sur le côté le plus long. Au-delà de 2048
+pixels, la copie redimensionnée est utilisée même si son fichier est plus gros.
+Pour les dimensions plus petites, le fichier original reste si JPEG est plus gros.
+L'original est conservé. Limite après préparation : 25 Mio par photo avec le
+nouveau protocole ; 8 Mio pour les anciens clients. Sans canvas, seuls les
+originaux compatibles avec la limite et la validation serveur sont envoyés.
+Les photos déjà reçues sont conservées jusqu'à 24 heures pour reprendre l'album.
+
+한국어 — 사진 업로드 0.8.0
+원본 파일은 최대 64 MiB입니다. canvas/JPEG 지원 시 최대 6,400만 화소 사진을
+긴 변 최대 2048픽셀의 JPEG 사본으로 준비합니다. 원본의 한 변이 2048픽셀을
+넘으면 파일 크기가 늘어나도 축소한 사본을 사용합니다. 더 작은 해상도에서는
+JPEG 파일이 더 클 경우 원본을 유지합니다.
+원본은 보존됩니다. 준비 후 새 프로토콜의 전송 한도는 사진당 25 MiB이며,
+이전 클라이언트는 8 MiB 한도를 유지합니다. canvas를 사용할 수 없으면
+전송 한도와 서버 검증을 통과하는 원본만 전송할 수 있습니다.
+서버가 받은 사진은 최대 24시간 보관되어 앨범 업로드를 이어갈 수 있습니다.
+
+DEUTSCH — FOTOS 0.8.0
+Originaldateien: bis 64 MiB. Mit canvas/JPEG werden bis zu 64 Millionen Pixel
+als JPEG-Kopie mit höchstens 2048 Pixeln an der längsten Seite vorbereitet.
+Bei mehr als 2048 Pixeln pro Seite wird die verkleinerte Kopie auch dann
+verwendet, wenn ihre Datei größer ist. Bei kleineren Abmessungen bleibt
+die Originaldatei, wenn JPEG größer wäre. Das Original bleibt erhalten. Nach der
+Vorbereitung gelten 25 MiB je Foto im neuen Protokoll, bei alten Clients 8 MiB.
+Ohne canvas müssen Originaldateien das Übertragungslimit und die Serverprüfung
+erfüllen. Bereits empfangene Fotos bleiben bis zu 24 Stunden zum Fortsetzen erhalten.
+
+简体中文 — 0.8.0 照片上传
+原始文件最大为 64 MiB。支持 canvas/JPEG 时，可处理最高 6400 万像素的照片，
+生成长边不超过 2048 像素的 JPEG 副本。原图任一边超过 2048 像素时，
+即使副本文件变大，也会使用缩小后的副本。较小尺寸下，如果 JPEG 文件
+更大，则仍使用原始文件。原图保留。
+处理后，新协议每张照片的传输上限为 25 MiB；旧客户端仍为 8 MiB。
+不支持 canvas 时，只有满足传输上限和服务器验证要求的原图才能发送。
+服务器已收到的照片最多保留 24 小时，重试时会跳过这些照片。

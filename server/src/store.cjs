@@ -41,6 +41,15 @@ function openStore(filename){
  CREATE TABLE IF NOT EXISTS post_like_bonuses(post_id INTEGER PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,amount INTEGER NOT NULL CHECK(amount BETWEEN 0 AND 1000000),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS bookmarks(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,UNIQUE(profile_id,post_id));
  CREATE INDEX IF NOT EXISTS bookmarks_profile ON bookmarks(profile_id,id DESC);`);
+ db.exec(`
+ CREATE TABLE IF NOT EXISTS upload_sessions(profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,request_id TEXT NOT NULL,caption TEXT NOT NULL,photo_count INTEGER NOT NULL CHECK(photo_count BETWEEN 1 AND 5),created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,generation TEXT NOT NULL DEFAULT (lower(hex(randomblob(16)))),post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,PRIMARY KEY(profile_id,request_id));
+ CREATE INDEX IF NOT EXISTS upload_sessions_expiry ON upload_sessions(expires_at) WHERE post_id IS NULL;
+ CREATE TABLE IF NOT EXISTS upload_parts(profile_id TEXT NOT NULL,request_id TEXT NOT NULL,position INTEGER NOT NULL CHECK(position BETWEEN 0 AND 4),digest TEXT NOT NULL,input_bytes INTEGER NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,image BLOB NOT NULL,thumbnail BLOB NOT NULL,bytes INTEGER NOT NULL,PRIMARY KEY(profile_id,request_id,position),FOREIGN KEY(profile_id,request_id) REFERENCES upload_sessions(profile_id,request_id) ON DELETE CASCADE);
+ CREATE TABLE IF NOT EXISTS operational_errors(id INTEGER PRIMARY KEY AUTOINCREMENT,created_at INTEGER NOT NULL,profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,source TEXT NOT NULL,code TEXT NOT NULL,status INTEGER NOT NULL,client_version TEXT NOT NULL,image_bytes INTEGER,route TEXT NOT NULL);
+ CREATE INDEX IF NOT EXISTS operational_errors_time ON operational_errors(created_at);
+ CREATE TABLE IF NOT EXISTS announcements(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,body TEXT NOT NULL,kind TEXT NOT NULL,active INTEGER NOT NULL,starts_at INTEGER NOT NULL,ends_at INTEGER,revision INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+ `);
+ if(!db.prepare('PRAGMA table_info(upload_sessions)').all().some(c=>c.name==='generation')){db.exec('ALTER TABLE upload_sessions ADD COLUMN generation TEXT');db.exec('UPDATE upload_sessions SET generation=lower(hex(randomblob(16))) WHERE generation IS NULL');}
  // Preserve existing notification IDs and read state while adding comment alerts.
  if(!db.prepare('PRAGMA table_info(notifications)').all().some(c=>c.name==='comment_id'))transaction(db,()=>{
   const sequence=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get()?.seq||0;
@@ -55,7 +64,7 @@ function openStore(filename){
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_follow ON notifications(profile_id,actor_id) WHERE kind='follow';
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_comment ON notifications(comment_id) WHERE kind='comment';
  CREATE INDEX IF NOT EXISTS notifications_inbox ON notifications(profile_id,id DESC);
- PRAGMA user_version=8;`);
+ PRAGMA user_version=9;`);
  return db;
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}

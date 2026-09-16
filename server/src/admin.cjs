@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {hash,random,transaction}=require('./store.cjs'),{act,fail,numeric,uuid}=require('./admin-actions.cjs');
 const Metadata=require('./social-metadata.cjs');
 const HOURS=4*3600000,PAGE=24;
-function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',accounts,storageBytes,send,json,limit,onError,zoimeetMonitor}){
+function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',accounts,storageBytes,send,json,limit,onError,zoimeetMonitor,operations,announcements}){
  if(ownerSteamId&&!/^\d{17}$/.test(ownerSteamId))throw Error('OWNER_STEAM_ID must be one SteamID64');
  if(ownerProfileId&&!uuid(ownerProfileId))throw Error('OWNER_PROFILE_ID must be one profile UUID');
  const monitor=zoimeetMonitor||require('./zoimeet-monitor.cjs').createMonitor();
@@ -29,7 +29,7 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
  const before=u=>u.searchParams.has('before')?numeric(u.searchParams.get('before')):Number.MAX_SAFE_INTEGER;
  const query=u=>{const q=(u.searchParams.get('q')||'').trim();if([...q].length>100)fail(400,'Поиск: не более 100 символов.');return q};
  const errorPage=message=>'<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="/admin/app.css"><title>Zoigram · Модерация</title><main class="auth-shell"><section class="auth-card"><div class="brand-mark">Z</div><h1>Не удалось войти</h1><p>'+String(message).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p><a class="primary button" href="/admin/">Вернуться в панель</a></section></main></html>';
- const assets=new Map([['/admin/',['index.html','text/html']],['/admin/zoimeet.js',['zoimeet.js','application/javascript']],['/admin/app.js',['app.js','application/javascript']],['/admin/app.css',['app.css','text/css']]].map(([url,[name,type]])=>[url,{type,body:fs.readFileSync(path.join(__dirname,'../admin',name),'utf8')} ]));
+ const assets=new Map([['/admin/',['index.html','text/html']],['/admin/zoimeet.js',['zoimeet.js','application/javascript']],['/admin/operations.js',['operations.js','application/javascript']],['/admin/app.js',['app.js','application/javascript']],['/admin/app.css',['app.css','text/css']]].map(([url,[name,type]])=>[url,{type,body:fs.readFileSync(path.join(__dirname,'../admin',name),'utf8')} ]));
  async function handle(req,res,u,ip){
   if(u.pathname!=='/admin'&&!u.pathname.startsWith('/admin/'))return false;
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");res.setHeader('X-Frame-Options','DENY');res.setHeader('Cross-Origin-Resource-Policy','same-origin');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Language','ru');res.setHeader('Cache-Control','no-store');
@@ -54,6 +54,10 @@ function createAdmin({db,origin,secret,ownerSteamId='',ownerProfileId='',account
    if(m==='POST'&&p==='/admin/api/logout'){db.prepare('DELETE FROM admin_sessions WHERE id=?').run(s.id);res.setHeader('Set-Cookie',cookie(sessionName,'',0));send(res,200,{ok:true});return true}
    if(m==='POST'&&p==='/admin/api/actions'){limit('admin-action:'+s.profile_id,30);const body=await json(req,8192);send(res,200,act(db,body,{id:s.profile_id},ownerSteamId));return true}
    if(m==='GET'&&p==='/admin/api/zoimeet'){send(res,200,await monitor(u.searchParams));return true;}
+   if(m==='GET'&&p==='/admin/api/operations'){send(res,200,operations.snapshot());return true}
+   if(m==='GET'&&p==='/admin/api/errors'){send(res,200,operations.list(u.searchParams));return true}
+   if(m==='GET'&&p==='/admin/api/announcements'){send(res,200,announcements.list());return true}
+   if(m==='POST'&&p==='/admin/api/announcements'){limit('announcement:'+s.profile_id,20);send(res,200,announcements.save(await json(req,12288),s.profile_id));return true}
    if(m==='GET'&&p==='/admin/api/summary'){send(res,200,summary());return true}
    const media=p.match(/^\/admin\/api\/media\/(\d+)$/);if(m==='GET'&&media){const id=numeric(media[1]),index=u.searchParams.get('photo')||'0';if(!/^[0-4]$/.test(index))fail(404,'Фото уже удалено.');const column=u.searchParams.get('size')==='thumb'?'thumbnail':'image',photo=index==='0'?db.prepare('SELECT '+column+' image FROM posts WHERE id=?').get(id):db.prepare('SELECT '+column+' image FROM post_photos WHERE post_id=? AND position=?').get(id,Number(index));if(!photo)fail(404,'Фото уже удалено.');res.writeHead(200,{'Content-Type':'image/jpeg','Content-Length':photo.image.length});res.end(Buffer.from(photo.image));return true}
    if(m==='GET'&&p==='/admin/api/profiles'){

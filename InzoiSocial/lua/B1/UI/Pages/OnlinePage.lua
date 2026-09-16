@@ -179,13 +179,15 @@ function M.create(kit,action)
    posts(model.posts)
   elseif model.mode=='post'then
    if model.selectedPost then posts({model.selectedPost})end
+  elseif model.mode=='announcement'then
+   local a=model.selectedAnnouncement;if a then label(a.title,19,'AnnouncementDetailTitle',P.ink,true);gap();label(a.body,13,'AnnouncementDetailBody');gap();button(content,L.t('Назад'),'AnnouncementBack','back')end
   elseif model.mode=='editPost'then
    if model.editTarget then image(model.editTarget,content,'EditPreview');gap();input('editCaption',L.t('Подпись'),model.editTarget.caption,100);label(L.t('Фотография, лайки и комментарии сохранятся.'),11,'EditCaptionHint',P.muted);gap();button(content,L.t('Сохранить'),'SaveCaption','saveCaption',nil,P.blue,true);gap(8);button(content,L.t('Отмена'),'CancelCaption','back')end
   elseif model.mode=='feed'then
    local row=k:make(UE.UHorizontalBox,'OnlineFeedFilters');content:AddChild(k:box('OnlineFiltersHeight',nil,42,row))
    for _,choice in ipairs({{'all',L.t('Для вас')},{'following',L.t('Подписки')}})do local scope=choice[1];local active=scope==model.scope;local b=k:button('OnlineScope'..scope,k:text(choice[2],12,'OnlineScopeLabel'..scope,active and P.ink or P.muted,active),function()action('scope',scope)end,10);b:SetIsEnabled(not model.busy);Kit.fill(row:AddChildToHorizontalBox(b))end
     local refresh=k:button('OnlineRefresh',k:glyph('refresh','OnlineRefreshGlyph',17,P.ink),function()action('refresh')end,12);refresh:SetIsEnabled(not model.busy);row:AddChild(refresh)
-    k:line(content,'OnlineFiltersRule');posts(model.posts)
+    k:line(content,'OnlineFiltersRule');require('B1.UI.AnnouncementCards').render(model,k,content,button,action);posts(model.posts)
   elseif model.mode=='profile'then
    local p=model.selectedProfile;if p then
     gap(12);local summary=k:make(UE.UHorizontalBox,'OnlineProfileSummary');content:AddChild(summary);summary:AddChild(avatar(p,64,'ProfileAvatar'))

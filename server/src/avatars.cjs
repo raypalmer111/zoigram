@@ -40,7 +40,7 @@ function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize})
   return transaction(db,()=>{
    const current=db.prepare('SELECT u.* FROM avatar_uploads u JOIN sessions s ON s.id=u.session_id JOIN profiles p ON p.id=s.profile_id WHERE u.token_hash=? AND u.expires_at>? AND s.expires_at>? AND p.banned=0').get(uploadTicket.token_hash,Date.now(),Date.now());
    if(!current)conflict();
-   const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars) n').get().n;
+   const used=db.prepare('SELECT (SELECT COALESCE(SUM(bytes),0) FROM posts)+(SELECT COALESCE(SUM(bytes),0) FROM avatars)+(SELECT COALESCE(SUM(bytes),0) FROM upload_parts) n').get().n;
    const old=db.prepare('SELECT bytes FROM avatars WHERE profile_id=?').get(uploadTicket.profile_id)?.bytes||0;
    if(used-old+image.length>budget)fail(507,'Хранилище заполнено. Владелец сервера уже может освободить место.');
    const revision=random();

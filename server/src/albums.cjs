@@ -7,7 +7,8 @@ function decode(body,caption,fail){
  const encoded=Object.hasOwn(body,'imagesBase64')?body.imagesBase64:[body.imageBase64];
  if(!Array.isArray(encoded)||encoded.length<1||encoded.length>MAX_PHOTOS)fail(400,'В альбоме должно быть от 1 до 5 фотографий.');
  const inputs=encoded.map(value=>{
-  if(typeof value!=='string'||value.length>Math.ceil(MAX_IMAGE/3)*4||value.length%4!==0||/[^A-Za-z0-9+/=]/.test(value))fail(400,'Не удалось прочитать фотографию.');
+  if(typeof value==='string'&&value.length>Math.ceil(MAX_IMAGE/3)*4)fail(413,'Фото должно быть не больше 8 МБ.');
+  if(typeof value!=='string'||value.length%4!==0||/[^A-Za-z0-9+/=]/.test(value))fail(400,'Не удалось прочитать фотографию.');
   const input=Buffer.from(value,'base64');if(input.toString('base64')!==value)fail(400,'Не удалось прочитать фотографию.');
   if(input.length<16||input.length>MAX_IMAGE)fail(413,'Фото должно быть не больше 8 МБ.');return input;
  });
