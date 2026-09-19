@@ -10,7 +10,7 @@ local function rgb(r,g,b)
 end
 M.palette={white=rgb(255,255,255),ink=rgb(23,21,27),muted=rgb(126,120,129),
     line=rgb(235,233,238),surface=rgb(247,246,249),blue=rgb(7,94,231),accent=rgb(224,5,71),
-    blush=rgb(255,232,240),message=rgb(229,240,255),frame=rgb(23,21,27)}
+    blush=rgb(255,232,240),message=rgb(229,240,255),frame=rgb(23,21,27),gold=rgb(215,160,24)}
 function M.margin(v) local m=UE.FMargin();m.Left=v;m.Top=v;m.Right=v;m.Bottom=v;return m end
 function M.slate(color) local s=UE.FSlateColor();s.SpecifiedColor=color;return s end
 function M.new(outer)
@@ -59,6 +59,14 @@ function M:roundedPanel(name,content,padding,tint,radius)
         p:SetBrush(brush)
     end)
     return p
+end
+function M:roundImage(image,radius)
+    -- Rounded Slate image brushes mask the photo itself; a rounded background
+    -- alone leaves the image's square corners visible over an avatar ring.
+    local brush=image.Brush;brush.DrawAs=4
+    local outline=brush.OutlineSettings;outline.RoundingType=0;outline.Width=0
+    outline.CornerRadii=UE.FVector4(radius,radius,radius,radius);brush.OutlineSettings=outline
+    image:SetBrush(brush)
 end
 function M:glyph(symbol,name,size,tint,width)
     local image=self:make(UE.UImage,name..'Image');image:SetBrushFromTexture(Glyphs.load(self.outer,symbol),false);image:SetColorAndOpacity(tint or M.palette.ink)

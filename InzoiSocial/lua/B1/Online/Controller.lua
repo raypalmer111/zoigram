@@ -4,6 +4,7 @@ local Photo=require('B1.Game.PhotoFlow')
 local MessageDrafts=require('B1.Data.MessageDrafts')
 local M={};M.__index=M
 require('B1.Online.Announcements').attach(M,Transport)
+require('B1.Online.MediaRefresh').attach(M)
 function M.new(app)
  local config=Transport.read('config')or{};L.set('auto')
  return setmetatable({app=app,transport=Transport.new(),server=Transport.server(config.server)or'https://vps-24654da6.vps.ovh.net',mode='setup',scope='all',posts={},comments={},notifications={},conversations={},messages={},history={},tab='feed',revision=0,elapsed=0,activityElapsed=20,unreadNotifications=0,unreadMessages=0},M)
@@ -12,6 +13,13 @@ function M:draw()
  if self.pendingLogin and type(self.pendingLogin.verificationUrl)=='string'then self.pendingLogin.verificationUrl=self.pendingLogin.verificationUrl:gsub('&lang=[%w_%-]+','')..'&lang='..L.language end
  self.revision=self.revision+1;self.app.view:renderOnline(self)end
 function M:input(name)return self.app.view:getOnlineInput(name)end
+function M:sessionEnded(result)
+ self:resetMedia();self.me=nil;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil
+ self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.accounts={};self.searchResults={};self.history={}
+ self.selectedProfile=nil;self.selectedPost=nil;self.selectedConversation=nil;self.editTarget=nil;self.deleteTarget=nil;self.profileId=nil;self.conversationId=nil
+ self.searchQuery=nil;self.searchCursor=nil;self.searchPerformed=false;self.unreadNotifications=0;self.unreadMessages=0;self.cursor=nil;self.commentCursor=nil;self.focusCommentId=nil
+ self.messageDraftStore=nil;self.postDraftStore=nil;self.draft=nil;self.draftAuthor=nil;self.albumIndices=nil;self.mode='login';self.error=result.messageKey or result.error
+end
 function M:request(method,path,body,success,upload,silent,quiet)
  if self.transport.pending then return end
  if not silent then self.busy=true;self.error=nil;self:draw()end
@@ -19,8 +27,11 @@ function M:request(method,path,body,success,upload,silent,quiet)
    self.busy=false
    if upload and not(status>=200 and status<300)then self:publicationFailed(status,result)end
    if status>=200 and status<300 then success(result)
-  elseif status==401 then self.me=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.mode='login';self.error=result.messageKey or result.error
-  elseif not quiet then self.error=result.messageKey or result.error or 'Нет связи с сервером. Попробуйте ещё раз.'end
+  elseif status==401 then self:sessionEnded(result)
+  elseif not quiet then
+   self.error=result.messageKey or result.error or 'Нет связи с сервером. Попробуйте ещё раз.'
+   if status==429 and type(result.retryAfter)=='number'and result.retryAfter>0 then self.error=L.t(self.error)..' '..L.t('Повторите через {seconds} сек.',{seconds=math.ceil(result.retryAfter)})end
+  end
   if not silent or self.error then self:draw()end
  end,upload)
 end
@@ -31,6 +42,7 @@ end
 function M:connect(value)
  local server=Transport.server(value)
  if not server then self.error='Укажите HTTPS-адрес сервера.';self:draw();return end
+ self:resetMedia()
  if self.server~=server then self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.server=server;self.mode='setup'
  self:request('GET','/api/info',nil,function(info)
   if info.authentication~='password'or info.origin~=self.server then self.error='По этому адресу нет совместимого сервера Zoigram.';return end
@@ -81,13 +93,21 @@ end
 function M:profile(id,more)
  if not id then return end;self.mode='profile';self.profileId=id
  local function posts()local path='/api/feed?profile='..id;if more and self.cursor then path=path..'&before='..self.cursor end
-  self:request('GET',path,nil,function(r)if more then for _,p in ipairs(r.posts or{})do self.posts[#self.posts+1]=p end else self.posts=r.posts or{}end;self.cursor=r.nextCursor end)
+  self:request('GET',path,nil,function(r)
+   local seen={};if not more then self.posts={}end
+   for _,p in ipairs(self.posts or{})do seen[p.id]=true end
+   if not more then for _,p in ipairs(r.pinnedPosts or{})do if not seen[p.id]then self.posts[#self.posts+1]=p;seen[p.id]=true end end end
+   for _,p in ipairs(r.posts or{})do if not seen[p.id]then self.posts[#self.posts+1]=p;seen[p.id]=true end end
+   self.cursor=r.nextCursor
+  end)
  end
  if more then posts()else self.posts={};self:request('GET','/api/profiles/'..id,nil,function(r)self.selectedProfile=r.profile;if self.me and id==self.me.id then self.me=r.profile end;posts()end)end
 end
-function M:discussion(post,more)
+function M:discussion(post,more,focus)
  self.mode='comments';self.selectedPost=post;local path='/api/posts/'..post.id..'/comments'
- if more and self.commentCursor then path=path..'?after='..self.commentCursor end
+ if not more then self.focusCommentId=tonumber(focus)end
+ if more and self.commentCursor then path=path..'?after='..self.commentCursor
+ elseif self.focusCommentId and self.focusCommentId>0 then path=path..'?after='..string.format('%.0f',self.focusCommentId-1)end
  self:request('GET',path,nil,function(r)self:replacePost(r.post);self.selectedPost=r.post;if more then for _,c in ipairs(r.comments or{})do self.comments[#self.comments+1]=c end else self.comments=r.comments or{}end;self.commentCursor=r.nextCursor end)
 end
 function M:notificationsPage(more)
@@ -122,6 +142,25 @@ function M:replacePost(post)
   if state.selectedPost and state.selectedPost.id==post.id then state.selectedPost=post end
  end
  update(self);for _,state in ipairs(self.history or{})do update(state)end
+end
+function M:pinPost(post)
+ if not self.me or not post or not post.author or post.author.id~=self.me.id then return end
+ local offset;pcall(function()offset=self.app.view.page.scroll:GetScrollOffset()end);self.restoreScroll=offset
+ self:request(post.pinned and'DELETE'or'PUT','/api/posts/'..post.id..'/pin',{},function(r)
+  if not r.post then return end
+  self:replacePost(r.post);self.postMenu=nil
+  local function reorder(state)
+   if state.mode~='profile'or state.profileId~=self.me.id then return end
+   table.sort(state.posts or{},function(a,b)
+    if(a.pinned==true)~=(b.pinned==true)then return a.pinned==true end
+    if a.pinned and(a.pinnedAt or 0)~=(b.pinnedAt or 0)then return(a.pinnedAt or 0)>(b.pinnedAt or 0)end
+    if(a.createdAt or 0)~=(b.createdAt or 0)then return(a.createdAt or 0)>(b.createdAt or 0)end
+    return(tonumber(a.id)or 0)>(tonumber(b.id)or 0)
+   end)
+  end
+  reorder(self);for _,previous in ipairs(self.history or{})do reorder(previous)end
+  self.notice=r.post.pinned and'Публикация закреплена.'or'Публикация откреплена.';self.restoreScroll=offset
+ end)
 end
 function M:openLogin()
  if not self.pendingLogin then return end
@@ -164,13 +203,13 @@ function M:accountAccess()
  end)
 end
 function M:snapshot()
- return {conversationFilter=self.conversationFilter,scrollOffset=self.app.view.page and self.app.view.page.scroll:GetScrollOffset()or 0,searchQuery=self.searchQuery,searchResults=self.searchResults,searchCursor=self.searchCursor,searchPerformed=self.searchPerformed,mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
+ return {focusCommentId=self.focusCommentId,conversationFilter=self.conversationFilter,scrollOffset=self.app.view.page and self.app.view.page.scroll:GetScrollOffset()or 0,searchQuery=self.searchQuery,searchResults=self.searchResults,searchCursor=self.searchCursor,searchPerformed=self.searchPerformed,mode=self.mode,scope=self.scope,profileId=self.profileId,selectedProfile=self.selectedProfile,selectedPost=self.selectedPost,tab=self.tab,posts=self.posts,comments=self.comments,cursor=self.cursor,commentCursor=self.commentCursor,accounts=self.accounts,accountsCursor=self.accountsCursor,notifications=self.notifications,notificationCursor=self.notificationCursor,conversations=self.conversations,conversationCursor=self.conversationCursor,messages=self.messages,messageCursor=self.messageCursor,conversationId=self.conversationId,selectedConversation=self.selectedConversation}
 end
 function M:push()
  self.history=self.history or{};self.history[#self.history+1]=self:snapshot();if #self.history>8 then table.remove(self.history,1)end;self.postMenu=nil;self.profileMenu=nil
 end
 function M:restore(state,refresh)
- for _,key in ipairs({'conversationFilter','searchQuery','searchResults','searchCursor','searchPerformed','mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
+ for _,key in ipairs({'focusCommentId','conversationFilter','searchQuery','searchResults','searchCursor','searchPerformed','mode','scope','profileId','selectedProfile','selectedPost','tab','posts','comments','cursor','commentCursor','accounts','accountsCursor','notifications','notificationCursor','conversations','conversationCursor','messages','messageCursor','conversationId','selectedConversation'})do self[key]=state[key]end
  self.restoreScroll=state.scrollOffset;self.postMenu=nil;self.deleteTarget=nil;self.profileMenu=nil
  if refresh and self.mode=='feed'then self:feed(self.scope)
  elseif refresh and self.mode=='profile'then self:profile(self.profileId)
@@ -205,6 +244,8 @@ function M:act(action,value)
   end
  end)
  elseif action=='location'then self.notice='Coming soon';self:draw()
+ elseif action=='creatorInfo'then self.notice='Создатель Zoigram';self:draw()
+ elseif action=='pinPost'then self:pinPost(value)
  elseif action=='search'then self.history={};self.tab='search';self.mode='search';self:draw()
  elseif action=='runSearch'then self:search(false)
  elseif action=='moreSearch'then self:search(true)
@@ -220,10 +261,14 @@ function M:act(action,value)
    if previous then self:restore(previous,false)else self.selectedPost=r.post;self.mode='post'end
   end)
  elseif action=='scope'then self.history={};self.tab='feed';self.postMenu=nil;self:feed(value)
- elseif action=='refresh'then self.postMenu=nil;self:feed(self.scope)
+ elseif action=='refresh'then self:resetMedia();self.postMenu=nil;self:feed(self.scope)
  elseif action=='notifications'then if self.mode~='notifications'then self:push()end;self.notifications={};self.notificationCursor=nil;self:notificationsPage(false)
  elseif action=='moreNotifications'then self:notificationsPage(true)
- elseif action=='notification'then if value.postId then self:request('GET','/api/posts/'..value.postId,nil,function(r)self:push();self.comments={};self.commentCursor=nil;self:discussion(r.post)end)else self:act('profile',value.actor.id)end
+ elseif action=='notification'then if value.postId then self:request('GET','/api/posts/'..value.postId,nil,function(r)
+  self:push();self.comments={};self.commentCursor=nil
+  if value.kind=='mention'and not value.commentId then self.selectedPost=r.post;self.mode='post'
+  else self:discussion(r.post,false,value.kind=='mention'and value.commentId or nil)end
+ end)else self:act('profile',value.actor.id)end
  elseif action=='conversations'then if self.mode~='conversations'then self:push()end;self.conversations={};self.conversationCursor=nil;self:conversationsPage(false)
  elseif action=='conversationFilter'then self.conversationFilter=value=='unread'and'unread'or'all';self.conversations={};self.conversationCursor=nil;self:conversationsPage(false)
  elseif action=='moreConversations'then self:conversationsPage(true)
@@ -249,6 +294,7 @@ function M:act(action,value)
  elseif action=='profileMenu'then self.profileMenu=not self.profileMenu;self:draw()
  elseif action=='comments'then self:push();self.comments={};self.commentCursor=nil;self:discussion(value)
  elseif action=='moreComments'then self:discussion(self.selectedPost,true)
+ elseif action=='allComments'then self:discussion(self.selectedPost,false)
  elseif action=='like'then self:request(value.liked and'DELETE'or'PUT','/api/posts/'..value.id..'/like',{},function(r)self:replacePost(r.post)end)
  elseif action=='reply'then
   local text=self:input('comment');if self.commentText~=text then self.commentKey=Transport.nonce();self.commentText=text end
@@ -260,7 +306,7 @@ function M:act(action,value)
  elseif action=='removeAvatar'then self:request('DELETE','/api/me/avatar',nil,function()self.pendingAvatar=nil;self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.notice='Аватар удалён.'end)end)
  elseif action=='saveProfile'then self:request('PATCH','/api/me',{displayName=self:input('name'),bio=self:input('bio')},function(r)self.me=r.profile;table.remove(self.history);self:profile(r.profile.id)end)
  elseif action=='settings'then if self.mode~='setup'then self:push();self.mode='setup';self:draw()end
- elseif action=='logout'then self:request('DELETE','/api/session',nil,function()local store=self:messageDrafts();if store then store:clear()end;self.messageDraftStore=nil;self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
+ elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self:resetMedia();local store=self:messageDrafts();if store then store:clear()end;self.messageDraftStore=nil;self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
  elseif action=='deletePost'then
   if not self.me or not value or value.author.id~=self.me.id then self.error='Можно удалить только свою публикацию.';self:draw();return end
   self:push();self.deleteTarget=value;self.mode='deletePost';self:draw()
@@ -321,7 +367,8 @@ function M:tick(dt)
   self:request('POST','/api/auth/poll',{deviceToken=self.pendingLogin.deviceToken},function(r)if r.status=='complete'then self.pendingLogin=nil;self.me=r.profile;self:feed('all')end end,nil,true)
  end
  if self.me and not self.pendingLogin and self.activityElapsed>=20 and not self.transport.pending then self.activityElapsed=0;self:activity()end
+ self:refreshMediaTick()
 end
-function M:dispose()self:saveDraft();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
+function M:dispose()self:saveDraft();self:resetMedia();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
 require('B1.Online.Publishing').attach(M,Transport,Photo)
 return M

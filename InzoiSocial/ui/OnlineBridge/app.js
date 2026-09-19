@@ -8,14 +8,14 @@
  async function read(key){try{var r=await cli('uimod.cfg_load',{mod_id:MOD,section:'online',key:key});return r&&r.value?unhex(r.value):null;}catch(e){return null;}}
  function write(key,value){return cli('uimod.cfg_save',{mod_id:MOD,section:'online',key:key,value:hex(value)});}
  function server(value){if(typeof value!=='string'||value.length>240)throw Error('Укажите адрес сервера.');value=value.replace(/\/+$/,'');if(!/^https:\/\/[a-z0-9.-]+(?::\d{1,5})?$/i.test(value)&&!/^http:\/\/(127\.0\.0\.1|localhost)(?::\d{1,5})?$/i.test(value))throw Error('Нужен HTTPS-адрес сервера без пути.');return value;}
- function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|me(?:\/(avatar|avatar-upload|account-access))?|session|saved(?:\?before=\d+)?|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\?filter=(?:all|unread)(?:&before=\d+)?|\?before=\d+)?|conversations\/[a-f0-9-]{36}\/(messages|read)(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/request\/[a-zA-Z0-9_-]{8,100}|\/\d+(?:\/(like|comments|save))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/search(?:\?q=[^#\\]*)?|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
+ function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|media\/refresh|uploads\/[a-zA-Z0-9_-]{8,100}|me(?:\/(avatar|avatar-upload|account-access))?|session|saved(?:\?before=\d+)?|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\?filter=(?:all|unread)(?:&before=\d+)?|\?before=\d+)?|conversations\/[a-f0-9-]{36}\/(messages|read)(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/request\/[a-zA-Z0-9_-]{8,100}|\/\d+(?:\/(like|comments|save|pin))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/search(?:\?q=[^#\\]*)?|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
    function request(method,url,body,token,raw,language,onProgress){return new Promise(function(resolve,reject){
    var x=new XMLHttpRequest(),done=false,timeout=raw?25000:(onProgress?120000:25000);
    function finish(error,value){if(done)return;done=true;clearTimeout(timer);if(error)reject(error);else resolve(value);}
    var timer=setTimeout(function(){finish(Error(raw?'Не удалось прочитать снимок.':'Сервер не ответил вовремя. Попробуйте снова.'));try{x.abort();}catch(e){}},timeout);
    x.open(method,url,true);x.timeout=timeout;if(raw)x.responseType='arraybuffer';else if(body!==undefined)x.setRequestHeader('Content-Type','application/json');
-   if(!raw)x.setRequestHeader('X-Zoigram-Version','0.8.0');
-   if(token)x.setRequestHeader('Authorization','Bearer '+token);if(!raw){x.setRequestHeader('Accept-Language',language||'en');x.setRequestHeader('X-Zoigram-Features','comment-notifications');}
+   if(!raw)x.setRequestHeader('X-Zoigram-Version','0.9.0');
+   if(token)x.setRequestHeader('Authorization','Bearer '+token);if(!raw){x.setRequestHeader('Accept-Language',language||'en');x.setRequestHeader('X-Zoigram-Features','comment-notifications,mention-notifications,pinned-posts');}
    if(onProgress&&x.upload)x.upload.onprogress=function(e){if(!done&&e.lengthComputable&&e.total>0)onProgress(Math.min(100,Math.floor(100*e.loaded/e.total)));};
    x.onload=function(){
     if(raw){if(x.status!==200&&x.status!==0)return finish(Error('Не удалось прочитать снимок.'));return finish(null,{status:200,body:x.response});}
@@ -59,7 +59,7 @@ function base64(buffer){var bytes=new Uint8Array(buffer),alphabet='ABCDEFGHIJKLM
     result=await request(job.method,base+job.path,body,token,false,job.language,job.upload?function(percent){var time=Date.now();if(percent===100||time-lastProgress>=300){lastProgress=time;progress(percent===100?'Обработка фотографий…':'Отправка фотографии…',undefined,percent).catch(function(){});}}:undefined);}
     await progressChain.catch(function(){});
     }catch(e){await progressChain.catch(function(){});
-    if(job.upload&&body&&body.resumable&&token){try{var diagnostic=new XMLHttpRequest();diagnostic.open('POST',base+'/api/diagnostics',true);diagnostic.timeout=3000;diagnostic.setRequestHeader('Content-Type','application/json');diagnostic.setRequestHeader('Authorization','Bearer '+token);diagnostic.setRequestHeader('X-Zoigram-Version','0.8.0');diagnostic.send(JSON.stringify({code:e.photoCode||'network',imageBytes:e.imageBytes}));}catch(ignore){}}
+    if(job.upload&&body&&body.resumable&&token){try{var diagnostic=new XMLHttpRequest();diagnostic.open('POST',base+'/api/diagnostics',true);diagnostic.timeout=3000;diagnostic.setRequestHeader('Content-Type','application/json');diagnostic.setRequestHeader('Authorization','Bearer '+token);diagnostic.setRequestHeader('X-Zoigram-Version','0.9.0');diagnostic.send(JSON.stringify({code:e.photoCode||'network',imageBytes:e.imageBytes}));}catch(ignore){}}
     return {status:0,body:{error:String(e.message||e),submitted:e.local?false:submitted}};
    }
 if(job.path==='/api/auth/poll'&&result.status===200&&result.body.status==='complete'){
@@ -76,5 +76,5 @@ if(job.path==='/api/auth/poll'&&result.status===200&&result.body.status==='compl
   if(result.body&&result.body.error){var key=result.body.messageKey||result.body.error;if(messages[key]){result.body.messageKey=key;result.body.error=messages[key];}}
   await write('response',{id:job.id,status:result.status,body:result.body,finishedAt:Math.floor(Date.now()/1000)});
  }catch(e){if(job&&job.id)lastId='';}finally{busy=false;}}
- engine.on('Ready',async function(){access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'0.8.0'});setInterval(tick,250);tick();});
+ engine.on('Ready',async function(){access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'0.9.0'});setInterval(tick,250);tick();});
 })();

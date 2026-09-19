@@ -50,24 +50,32 @@ function openStore(filename){
  CREATE TABLE IF NOT EXISTS announcements(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,body TEXT NOT NULL,kind TEXT NOT NULL,active INTEGER NOT NULL,starts_at INTEGER NOT NULL,ends_at INTEGER,revision INTEGER NOT NULL,updated_at INTEGER NOT NULL);
  `);
  transaction(db,()=>{if(!db.prepare('PRAGMA table_info(upload_sessions)').all().some(c=>c.name==='generation'))db.exec('ALTER TABLE upload_sessions ADD COLUMN generation TEXT');db.exec('UPDATE upload_sessions SET generation=lower(hex(randomblob(16))) WHERE generation IS NULL');});
- // Preserve existing notification IDs and read state while adding comment alerts.
- if(!db.prepare('PRAGMA table_info(notifications)').all().some(c=>c.name==='comment_id'))transaction(db,()=>{
+ // Rebuild the notification constraint without resetting IDs, read state, or
+ // the AUTOINCREMENT high-water mark (including previously deleted rows).
+ transaction(db,()=>{
+ if(!db.prepare('PRAGMA table_info(operational_errors)').all().some(c=>c.name==='stage'))db.exec('ALTER TABLE operational_errors ADD COLUMN stage TEXT');
+ db.exec('CREATE TABLE IF NOT EXISTS pinned_posts(post_id INTEGER PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL)');
+ if(!db.prepare("SELECT sql FROM sqlite_master WHERE name='notifications'").get().sql.includes("'mention'")){
+  const hasComment=db.prepare('PRAGMA table_info(notifications)').all().some(c=>c.name==='comment_id');
   const sequence=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get()?.seq||0;
-  db.exec(`CREATE TABLE notifications_next(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,actor_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('like','follow','comment')),post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,read_at INTEGER,comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,CHECK((kind='like' AND post_id IS NOT NULL AND comment_id IS NULL) OR (kind='follow' AND post_id IS NULL AND comment_id IS NULL) OR (kind='comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL)));
-   INSERT INTO notifications_next(id,profile_id,actor_id,kind,post_id,created_at,read_at) SELECT id,profile_id,actor_id,kind,post_id,created_at,read_at FROM notifications;
+  db.exec(`CREATE TABLE notifications_next(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,actor_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('like','follow','comment','mention')),post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,read_at INTEGER,comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,CHECK((kind='like' AND post_id IS NOT NULL AND comment_id IS NULL) OR (kind='follow' AND post_id IS NULL AND comment_id IS NULL) OR (kind='comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL) OR (kind='mention' AND post_id IS NOT NULL)));
+   INSERT INTO notifications_next(id,profile_id,actor_id,kind,post_id,created_at,read_at,comment_id) SELECT id,profile_id,actor_id,kind,post_id,created_at,read_at,${hasComment?'comment_id':'NULL'} FROM notifications;
    DROP TABLE notifications;
    ALTER TABLE notifications_next RENAME TO notifications;`);
   if(db.prepare("SELECT 1 FROM sqlite_sequence WHERE name='notifications'").get())db.prepare("UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name='notifications'").run(sequence);
   else db.prepare('INSERT INTO sqlite_sequence(name,seq) VALUES(?,?)').run('notifications',sequence);
- });
+ }
  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS notifications_like ON notifications(profile_id,actor_id,post_id) WHERE kind='like';
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_follow ON notifications(profile_id,actor_id) WHERE kind='follow';
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_comment ON notifications(comment_id) WHERE kind='comment';
+ CREATE UNIQUE INDEX IF NOT EXISTS notifications_mention_post ON notifications(profile_id,post_id) WHERE kind='mention' AND comment_id IS NULL;
+ CREATE UNIQUE INDEX IF NOT EXISTS notifications_mention_comment ON notifications(profile_id,comment_id) WHERE kind='mention' AND comment_id IS NOT NULL;
  CREATE INDEX IF NOT EXISTS notifications_inbox ON notifications(profile_id,id DESC);
- PRAGMA user_version=9;`);
+ PRAGMA user_version=10;`);
+ });
  return db;
 }
-function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){db.exec('ROLLBACK');throw e}}
+function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}
 function identity(db,provider,subject){
  const old=db.prepare('SELECT * FROM profiles WHERE provider=? AND subject=?').get(provider,subject);if(old)return old;
  const id=crypto.randomUUID(),username='player_'+id.replaceAll('-','').slice(0,12);

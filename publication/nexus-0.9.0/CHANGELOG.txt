@@ -1,0 +1,1 @@
+Added @mentions with notifications, up to 3 pinned profile posts, and a golden Creator badge and avatar ring. Fixed expired photo links and uploads blocked by abandoned drafts. Improved upload error messages and retry guidance.

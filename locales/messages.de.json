@@ -318,5 +318,21 @@
   "Измените существующее объявление: достигнут лимит 100 записей.": "Bearbeite eine vorhandene Mitteilung: Die Grenze von 100 Einträgen ist erreicht.",
   "Загрузка изменена. Повторите отправку.": "Der Upload wurde geändert. Versuche es erneut.",
   "Метод не поддерживается.": "Diese Methode ist nicht zulässig.",
-  "Назад": "Zurück"
+  "Назад": "Zurück",
+  "Создатель Zoigram": "Entwickler von Zoigram",
+  "Упомяните игрока через @ID — он получит уведомление.": "Erwähne einen Spieler mit @ID, um ihn zu benachrichtigen.",
+  "Закрепить в профиле": "Im Profil anheften",
+  "Открепить от профиля": "Vom Profil lösen",
+  "Публикация закреплена.": "Beitrag angeheftet.",
+  "Публикация откреплена.": "Beitrag gelöst.",
+  "Закреплено": "Angeheftet",
+  "Упоминание от {name}": "{name} hat dich erwähnt",
+  "Лайки, комментарии, упоминания и подписки появятся здесь.": "Hier erscheinen Likes, Kommentare, Erwähnungen und neue Follower.",
+  "Показать все комментарии": "Alle Kommentare anzeigen",
+  "Вас упомянули в этом комментарии.": "Du wurdest in diesem Kommentar erwähnt.",
+  "Повторите через {seconds} сек.": "Versuche es in {seconds} Sekunden erneut.",
+  "Можно закрепить только свою публикацию.": "Du kannst nur eigene Beiträge anheften.",
+  "Можно закрепить не больше 3 публикаций.": "Du kannst bis zu 3 Beiträge anheften.",
+  "Фотография ещё отправляется. Повторите позже.": "Das Foto wird noch hochgeladen. Versuche es später erneut.",
+  "Загруженные фотографии сохранены. Продолжите отправку.": "Deine hochgeladenen Fotos sind gespeichert. Setze den Upload fort."
 }

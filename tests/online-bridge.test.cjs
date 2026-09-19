@@ -49,7 +49,7 @@ test('language follows each job and local errors are translated without altering
 test('search and caption editing cross the bridge with unchanged queries and optimistic concurrency data',async()=>{const f=await fixture({session});const path='/api/profiles/search?q=%40%D0%9C%D0%B8%D0%BD%D0%B0&after=11111111-1111-4111-8111-111111111111';assert.equal((await f.run({path})).status,200);assert(f.calls.at(-1).url.endsWith(path));const body={caption:'New 🌆',expectedCaption:'Before'};assert.equal((await f.run({method:'PATCH',path:'/api/posts/12',body})).status,200);assert.deepEqual(JSON.parse(f.calls.at(-1).body),body);for(const path of ['/api/profiles/search/../../me','/api/profiles/search?q=x#y','/api/profiles/search?q=x\\evil'])assert.equal((await f.run({path})).status,0);});
 
 test('bookmarks cross the bridge with comment capability and Chinese/German request locales',async()=>{
- const f=await fixture({session});for(const [method,path]of [['GET','/api/saved'],['GET','/api/saved?before=14'],['PUT','/api/posts/3/save'],['DELETE','/api/posts/3/save']]){const r=await f.run({method,path,language:'zh'});assert.equal(r.status,200);assert.equal(f.calls.at(-1).headers['X-Zoigram-Features'],'comment-notifications');assert.equal(f.calls.at(-1).headers['Accept-Language'],'zh')}
+ const f=await fixture({session});for(const [method,path]of [['GET','/api/saved'],['GET','/api/saved?before=14'],['PUT','/api/posts/3/save'],['DELETE','/api/posts/3/save']]){const r=await f.run({method,path,language:'zh'});assert.equal(r.status,200);assert.equal(f.calls.at(-1).headers['X-Zoigram-Features'],'comment-notifications,mention-notifications,pinned-posts');assert.equal(f.calls.at(-1).headers['Accept-Language'],'zh')}
  const denied=await f.run({server:'https://other.example',language:'de'});assert.equal(denied.body.error,'Melde dich bei Zoigram an.');const n=f.calls.length;for(const path of ['/api/saved?profile=other','/api/posts/3/save/../../me'])assert.equal((await f.run({path})).status,0);assert.equal(f.calls.length,n);
 });
 
@@ -76,21 +76,21 @@ function localPhoto(url){return Uint8Array.from({length:64},()=>Number(url.match
 test('resumable albums read and send only missing parts, then complete exactly once',async()=>{
  const f=await fixture({session,route:x=>{
   if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
-  if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[0,1]}};
+  if(x.method==='GET'||x.url.endsWith('/api/uploads'))return {status:200,body:{received:[0,1]}};
   if(x.url.endsWith('/complete'))return {status:201,body:{post:{id:81}}};
   return {status:200,body:{ok:true}};
  }});
  const result=await f.run(resumedJob);assert.equal(result.status,201);assert.equal(result.body.post.id,81);
  assert.deepEqual(f.calls.filter(x=>x.url.startsWith('uploads/')).map(x=>x.url),['uploads/outgoing_3.png','uploads/outgoing_4.png','uploads/outgoing_5.png']);
  const parts=f.calls.filter(x=>x.method==='PUT');assert.deepEqual(parts.map(x=>Number(x.url.split('/').at(-1))),[2,3,4]);parts.forEach((part,i)=>{assert.equal(Buffer.from(JSON.parse(part.body).imageBase64,'base64')[0],i+3);assert.equal(part.headers.Authorization,'Bearer test-token');});
- assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);assert.deepEqual(JSON.parse(f.calls[0].body),{requestId:resumedJob.body.requestId,caption:'Five views 🌆',count:5});await f.tick();assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);
+ assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);assert.deepEqual(JSON.parse(f.calls.find(x=>x.url.endsWith('/api/uploads')).body),{requestId:resumedJob.body.requestId,caption:'Five views 🌆',count:5});await f.tick();assert.equal(f.calls.filter(x=>x.url.endsWith('/complete')).length,1);
 });
 for(const failure of ['http','network'])test('a '+failure+' part failure stops completion and retry skips confirmed parts with the same request ID',async()=>{
  const received=new Set();let fail=true;
  const f=await fixture({session,route:x=>{
   if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
   if(x.url.endsWith('/api/diagnostics'))return {status:200,body:{ok:true}};
-  if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[...received]}};
+  if(x.method==='GET'||x.url.endsWith('/api/uploads'))return {status:200,body:{received:[...received]}};
   if(x.url.endsWith('/complete'))return {status:201,body:{post:{id:82}}};
   const index=Number(x.url.split('/').at(-1));if(index===1&&fail){fail=false;return failure==='network'?{error:true}:{status:503,body:{error:'Please retry'}};}
   received.add(index);return {status:200,body:{ok:true}};
@@ -102,11 +102,12 @@ for(const failure of ['http','network'])test('a '+failure+' part failure stops c
 });
 test('an already completed resumable request returns its post without reading local files or completing again',async()=>{
  const f=await fixture({session,route:()=>({status:200,body:{post:{id:83}}})});const result=await f.run(resumedJob);
- assert.equal(result.status,200);assert.equal(result.body.post.id,83);assert.equal(f.calls.length,1);assert(f.calls[0].url.endsWith('/api/uploads'));
+ assert.equal(result.status,200);assert.equal(result.body.post.id,83);assert.equal(f.calls.length,1);assert(f.calls[0].url.endsWith('/api/uploads/'+resumedJob.body.requestId));assert.equal(f.calls[0].method,'GET');
 });
 for(const rejectedStage of ['begin','part','complete'])test('HTTP 401 during resumable '+rejectedStage+' clears persisted and in-memory authentication',async()=>{
  const f=await fixture({session,route:x=>{
   if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+  if(x.method==='GET')return {status:200,body:{received:rejectedStage==='complete'?[0,1,2,3,4]:[]}};
   const stage=x.url.endsWith('/api/uploads')?'begin':x.url.endsWith('/complete')?'complete':'part';
   if(stage===rejectedStage)return {status:401,body:{error:'Sign in again'}};
   return {status:200,body:stage==='begin'?{received:rejectedStage==='complete'?[0,1,2,3,4]:[]}:{ok:true}};
@@ -117,10 +118,22 @@ test('non-JSON proxy 413 reports 25 MiB for a resumable part and retains 8 MiB f
  for(const resumable of [true,false]){
   const f=await fixture({session,route:x=>{
    if(x.url.startsWith('uploads/'))return {status:0,raw:localPhoto(x.url)};
+   if(x.method==='GET')return {status:410,body:{}};
    if(x.url.endsWith('/api/uploads'))return {status:200,body:{received:[]}};
    return {status:413,text:'<html>Payload too large</html>'};
   }});
   const result=await f.run({...resumedJob,upload:['outgoing_1.png'],body:{...resumedJob.body,resumable}});
   assert.equal(result.status,413);assert.equal(result.body.messageKey,resumable?'Фото должно быть не больше 25 МБ.':'Фото должно быть не больше 8 МБ.');assert(!result.body.error.includes('<html>'));
  }
+});
+test('media renewal, pinning and safe empty-draft cleanup use the authenticated bridge allowlist',async()=>{
+ const f=await fixture({session}),profile='11111111-1111-4111-8111-111111111111';
+ for(const [method,path,body]of [['POST','/api/media/refresh',{postIds:[1],profileIds:[profile]}],['PUT','/api/posts/1/pin',{}],['DELETE','/api/posts/1/pin',{}],['GET','/api/uploads/stable-request'],['DELETE','/api/uploads/stable-request',{emptyOnly:true}]]){
+  assert.equal((await f.run({method,path,body})).status,200);const call=f.calls.at(-1);assert.equal(call.headers.Authorization,'Bearer test-token');assert.equal(call.headers['X-Zoigram-Features'],'comment-notifications,mention-notifications,pinned-posts');if(body)assert.deepEqual(JSON.parse(call.body),body);
+ }
+ const before=f.calls.length;for(const path of ['/api/uploads/short','/api/uploads/../../session','/api/uploads/stable-request?emptyOnly=true','/api/media/refresh/../session','/api/posts/no/pin','/api/posts/1/pin/../../me'])assert.equal((await f.run({path})).status,0,path);assert.equal(f.calls.length,before);
+});
+test('resumable local-read failure does not reserve a slot and reports an unsubmitted photo error',async()=>{
+ const f=await fixture({session,route:x=>x.url.endsWith('/api/diagnostics')?{status:202,body:{ok:true}}:x.url.startsWith('uploads/')?{status:404}:{status:410,body:{}}});
+ const result=await f.run({...resumedJob,upload:['outgoing_1.png']});assert.equal(result.status,0);assert.equal(result.body.submitted,false);assert.equal(result.body.messageKey,'Не удалось прочитать снимок.');assert(!f.calls.some(x=>x.method==='POST'&&x.url.endsWith('/api/uploads')));
 });

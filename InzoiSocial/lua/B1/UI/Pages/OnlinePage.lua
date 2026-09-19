@@ -27,7 +27,7 @@ function M.create(kit,action)
   if self.route~=route then self.saved={};self.scroll:ScrollToStart()else for name,w in pairs(self.inputs)do if w:IsValid()then self.saved[name]=tostring(w:GetText())end end end
   self.route=route;self.inputs={};self:stopImages();if self.k then self.k:destroy()end;self.content:ClearChildren();local k=Kit.new(kit.outer);self.k=k;local content=self.content
   self.body:SetPadding(Kit.margin(model.mode=='feed'and 0 or 14))
-  local cacheKey=model.server..':'..tostring(model.me and model.me.id);if self.cacheKey~=cacheKey then self.cache={};self.avatarCache={};self.avatarCacheOrder={};self.cacheOrder={};self.cacheKey=cacheKey end
+   local cacheKey=model.server..':'..tostring(model.me and model.me.id)..':'..tostring(model.mediaGeneration or 0);if self.cacheKey~=cacheKey then self.cache={};self.avatarCache={};self.avatarCacheOrder={};self.cacheOrder={};self.cacheKey=cacheKey end
   local function label(text,size,name,color,bold)content:AddChild(k:text(text,size or 13,'Online'..name,color or P.ink,bold,true,true))end
   local function gap(height)k:gap(content,height or 12,'OnlineGap'..content:GetChildrenCount())end
   local function button(parent,title,name,a,value,color,filled)
@@ -39,7 +39,13 @@ function M.create(kit,action)
    local text=k:text(value or p.displayName,size,'Online'..name,tint or P.ink,true,true,true)
    local bounds=k:box('Online'..name..'TextBounds',nil,nil,text);bounds:SetMaxDesiredWidth(size>=16 and 200 or 150)
    row:AddChildToHorizontalBox(bounds):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-   if p.verified==true then
+   if p.creator==true then
+    row:AddChild(k:box('Online'..name..'BadgeGap',4,1))
+    local badge=k:glyph('creator','Online'..name..'Creator',size>=16 and 18 or 15,P.white)
+    local info=k:button('Online'..name..'CreatorBadge',badge,function()action('creatorInfo')end,1)
+    pcall(function()info:SetToolTipText(L.t('Создатель Zoigram'))end)
+    row:AddChildToHorizontalBox(info):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+   elseif p.verified==true then
     row:AddChild(k:box('Online'..name..'BadgeGap',4,1))
     local badge=k:glyph('verified','Online'..name..'Verified',size>=16 and 16 or 13,P.blue)
     pcall(function()badge:SetToolTipText(L.t('Подтверждённый аккаунт'))end)
@@ -48,6 +54,7 @@ function M.create(kit,action)
    return row
   end
   local function avatar(p,size,name)
+   local outside=size;local ring=p.creator==true and 2 or 0;size=size-ring*2
    local initial=((p.displayName or''):match('^[A-Za-z0-9]')or(p.username or'z'):sub(1,1)):upper()
    local fallback=k:roundedPanel('Online'..name,k:text(initial,math.floor(size*.39),'Online'..name..'Initial',P.accent,true),math.floor(size*.2),P.blush,size/2)
    local overlay=k:make(UE.UOverlay,'Online'..name..'Layers')
@@ -56,9 +63,9 @@ function M.create(kit,action)
    if type(p.avatarUrl)=='string'and p.avatarUrl:sub(1,#model.server+13)==model.server..'/api/avatars/'then
     local pic=k:make(UE.UImage,'Online'..name..'Photo');pic:SetColorAndOpacity(P.white);pic:SetVisibility(UE.ESlateVisibility.Collapsed);add(pic)
     self.avatarCache=self.avatarCache or{};local key=p.id..':'..tostring(p.avatarVersion);local cached=self.avatarCache[key]
-    local function show(texture)if pic:IsValid()then pic:SetBrushFromTextureDynamic(texture,false);pic:SetVisibility(UE.ESlateVisibility.Visible);fallback:SetVisibility(UE.ESlateVisibility.Collapsed)end end
+    local function show(texture)if pic:IsValid()then pic:SetBrushFromTextureDynamic(texture,false);k:roundImage(pic,size/2);pic:SetVisibility(UE.ESlateVisibility.Visible);fallback:SetVisibility(UE.ESlateVisibility.Collapsed)end end
     if cached and cached:IsValid()then show(cached)
-    else
+    elseif model:mediaReady('profile',p)then
      local generation=self.generation
      local ok=pcall(function()
       local task=UE.UAsyncTaskDownloadImage.DownloadImage(p.avatarUrl);local entry={task=task}
@@ -69,16 +76,18 @@ function M.create(kit,action)
          if not self.avatarCache[key]then self.avatarCacheOrder[#self.avatarCacheOrder+1]=key end
          self.avatarCache[key]=texture
          while #self.avatarCacheOrder>48 do self.avatarCache[table.remove(self.avatarCacheOrder,1)]=nil end
-         show(texture);break
+          model:mediaLoaded('profile',p);show(texture);break
         end
        end
       end
-      entry.fail=function()end
+       entry.fail=function()if self.generation==generation then model:mediaFailed('profile',p)end end
       task.OnSuccess:Add(kit.outer,entry.success);task.OnFail:Add(kit.outer,entry.fail);self.tasks[#self.tasks+1]=entry
      end)
     end
    end
-   return k:box('Online'..name..'Size',size,size,overlay)
+    local inner=k:box('Online'..name..'InnerSize',size,size,overlay)
+    local framed=ring>0 and k:roundedPanel('Online'..name..'CreatorRing',inner,ring,P.gold,outside/2)or inner
+    return k:box('Online'..name..'Size',outside,outside,framed)
   end
   local function input(name,title,value,height)
    label(title,10,name..'Title',P.muted,true);gap(5)
@@ -90,27 +99,34 @@ function M.create(kit,action)
    content:AddChild(k:text(title,19,'OnlineEmpty',P.ink,true,false,true));gap(6);content:AddChild(k:text(description,12,'OnlineEmptyHint',P.muted,false,false,true));gap(30)
   end
   local function image(post,column,index,tile)
+   local source=post;local asset=1
    if not tile and type(post.photos)=='table'and #post.photos>0 then
     local at=math.max(1,math.min(model.albumIndices and model.albumIndices[post.id]or 1,#post.photos));local p=post.photos[at]
-    post={id=tostring(post.id)..':'..at,width=p.width,height=p.height,thumbnailUrl=p.thumbnailUrl}
+     asset=at;post={id=tostring(post.id)..':'..at,width=p.width,height=p.height,thumbnailUrl=p.thumbnailUrl}
    end
    local name='OnlinePhoto'..index;local width=tile or(model.mode=='feed'and 324 or 296);local height=tile or math.min(420,width*post.height/math.max(1,post.width));if not tile then width=height*post.width/math.max(1,post.height)end
    local overlay=k:make(UE.UOverlay,name..'Overlay');local function stretch(w)local slot=overlay:AddChildToOverlay(w);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Fill);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Fill)end
    stretch(k:panel(name..'Bg',nil,0,P.surface));local pic=k:make(UE.UImage,name);pic:SetColorAndOpacity(P.white);if tile then local scale=k:make(UE.UScaleBox,name..'Crop');scale:SetStretch(5);scale:AddChild(k:box(name..'Aspect',post.width,post.height,pic));stretch(scale)else stretch(pic)end;pic:SetVisibility(UE.ESlateVisibility.Collapsed)
    local hint=k:text(L.t('Загрузка фото…'),11,name..'Hint',P.muted);local slot=overlay:AddChildToOverlay(hint);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Center);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-   local frame=k:box(name..'Size',width,height,overlay);if tile then frame:SetClipping(1)else Kit.center(column,frame)end;local cached=self.cache[post.id]
+    local frame=k:box(name..'Size',width,height,overlay);if tile then frame:SetClipping(1)else Kit.center(column,frame)end;local cached=self.cache[post.id]
+    if tile and source.pinned then
+     local emblem=k:roundedPanel(name..'PinSurface',k:glyph('pin',name..'PinGlyph',11,P.white),4,P.frame,9)
+     local pinSlot=overlay:AddChildToOverlay(emblem);pinSlot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Right);pinSlot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Top);pinSlot:SetPadding(Kit.margin(4))
+     pcall(function()emblem:SetToolTipText(L.t('Закреплено'))end)
+    end
    local function show(texture)if pic:IsValid()then pic:SetBrushFromTextureDynamic(texture,false);pic:SetVisibility(UE.ESlateVisibility.Visible);hint:SetVisibility(UE.ESlateVisibility.Collapsed)end end
    if cached and cached:IsValid()then show(cached);return frame end
-   if type(post.thumbnailUrl)~='string'or post.thumbnailUrl:sub(1,#model.server+11)~=model.server..'/api/media/'then hint:SetText(L.t('Фото недоступно'));return frame end
+    if type(post.thumbnailUrl)~='string'or post.thumbnailUrl:sub(1,#model.server+11)~=model.server..'/api/media/'then hint:SetText(L.t('Фото недоступно'));return frame end
+    if not model:mediaReady('post',source,asset)then hint:SetText(L.t('Фото временно недоступно'));return frame end
    local generation=self.generation;local ok,err=pcall(function()
     local task=UE.UAsyncTaskDownloadImage.DownloadImage(post.thumbnailUrl);local entry={task=task}
     entry.success=function(...)
      if self.generation~=generation then return end
      for i=1,select('#',...)do local texture=select(i,...);local good,name=pcall(function()return texture:GetClass():GetName()end)
-      if good and name=='Texture2DDynamic'then self.cache[post.id]=texture;self.cacheOrder[#self.cacheOrder+1]=post.id;if #self.cacheOrder>24 then local expired=table.remove(self.cacheOrder,1);self.cache[expired]=nil end;show(texture);break end
+       if good and name=='Texture2DDynamic'then self.cache[post.id]=texture;self.cacheOrder[#self.cacheOrder+1]=post.id;if #self.cacheOrder>24 then local expired=table.remove(self.cacheOrder,1);self.cache[expired]=nil end;model:mediaLoaded('post',source,asset);show(texture);break end
      end
     end
-    entry.fail=function()if self.generation==generation and hint:IsValid()then hint:SetText(L.t('Фото не загрузилось. Обновите ленту.'))end end
+     entry.fail=function()if self.generation==generation and hint:IsValid()then hint:SetText(L.t('Фото не загрузилось. Обновите ленту.'));model:mediaFailed('post',source,asset)end end
     task.OnSuccess:Add(kit.outer,entry.success);task.OnFail:Add(kit.outer,entry.fail);self.tasks[#self.tasks+1]=entry
    end);if not ok then hint:SetText(L.t('Фото временно недоступно'))end
    return frame
@@ -129,7 +145,11 @@ function M.create(kit,action)
     local names=k:make(UE.UVerticalBox,'OnlineAuthorNames'..i);names:AddChild(nameLine(post.author,12,'AuthorName'..i));names:AddChild(k:text('@'..post.author.username,10,'OnlineAuthorHandle'..i,P.muted,false,true))
     local author=k:button('OnlineAuthor'..i,names,function()action('profile',post.author.id)end,7);author:SetIsEnabled(not model.busy);Kit.fill(head:AddChildToHorizontalBox(author))
     if model.me and post.author.id==model.me.id then local menu=k:button('OnlinePostMenu'..i,k:glyph('more','OnlinePostMenuGlyph'..i,18),function()action('postMenu',post)end,7);menu:SetIsEnabled(not model.busy);head:AddChild(menu)end
-    if model.postMenu==post.id and model.me and post.author.id==model.me.id then button(column,L.t('Изменить подпись'),'EditPost'..i,'editPost',post);button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)end
+     if model.postMenu==post.id and model.me and post.author.id==model.me.id then
+      button(column,L.t('Изменить подпись'),'EditPost'..i,'editPost',post)
+      if model.info and model.info.features and model.info.features.pinnedPosts then button(column,L.t(post.pinned and'Открепить от профиля'or'Закрепить в профиле'),'PinPost'..i,'pinPost',post)end
+      button(column,L.t('Удалить публикацию'),'DeletePost'..i,'deletePost',post,P.accent)
+     end
     image(post,column,i)
      if post.photos and #post.photos>1 then
       local at=math.max(1,math.min(model.albumIndices and model.albumIndices[post.id]or 1,#post.photos));local navigation=k:make(UE.UHorizontalBox,'OnlineAlbumNav'..i);Kit.center(column,navigation)
@@ -182,7 +202,7 @@ function M.create(kit,action)
   elseif model.mode=='announcement'then
    local a=model.selectedAnnouncement;if a then label(a.title,19,'AnnouncementDetailTitle',P.ink,true);gap();label(a.body,13,'AnnouncementDetailBody');gap();button(content,L.t('Назад'),'AnnouncementBack','back')end
   elseif model.mode=='editPost'then
-   if model.editTarget then image(model.editTarget,content,'EditPreview');gap();input('editCaption',L.t('Подпись'),model.editTarget.caption,100);label(L.t('Фотография, лайки и комментарии сохранятся.'),11,'EditCaptionHint',P.muted);gap();button(content,L.t('Сохранить'),'SaveCaption','saveCaption',nil,P.blue,true);gap(8);button(content,L.t('Отмена'),'CancelCaption','back')end
+   if model.editTarget then image(model.editTarget,content,'EditPreview');gap();input('editCaption',L.t('Подпись'),model.editTarget.caption,100);label(L.t('Упомяните игрока через @ID — он получит уведомление.'),11,'EditMentionHint',P.muted);gap(6);label(L.t('Фотография, лайки и комментарии сохранятся.'),11,'EditCaptionHint',P.muted);gap();button(content,L.t('Сохранить'),'SaveCaption','saveCaption',nil,P.blue,true);gap(8);button(content,L.t('Отмена'),'CancelCaption','back')end
   elseif model.mode=='feed'then
    local row=k:make(UE.UHorizontalBox,'OnlineFeedFilters');content:AddChild(k:box('OnlineFiltersHeight',nil,42,row))
    for _,choice in ipairs({{'all',L.t('Для вас')},{'following',L.t('Подписки')}})do local scope=choice[1];local active=scope==model.scope;local b=k:button('OnlineScope'..scope,k:text(choice[2],12,'OnlineScopeLabel'..scope,active and P.ink or P.muted,active),function()action('scope',scope)end,10);b:SetIsEnabled(not model.busy);Kit.fill(row:AddChildToHorizontalBox(b))end
@@ -200,10 +220,10 @@ function M.create(kit,action)
    else label(L.t('Загрузка профиля…'),13,'ProfileLoading',P.muted)end
    elseif model.mode=='notifications'then
     gap(4)
-    if #(model.notifications or{})==0 then empty(L.t('Пока нет уведомлений'),L.t('Лайки, комментарии и подписки появятся здесь.'))end
+    if #(model.notifications or{})==0 then empty(L.t('Пока нет уведомлений'),L.t('Лайки, комментарии, упоминания и подписки появятся здесь.'))end
     for i,n in ipairs(model.notifications or{})do
      local row=k:make(UE.UHorizontalBox,'OnlineNotificationRow'..i);row:AddChildToHorizontalBox(avatar(n.actor,42,'NotificationAvatar'..i)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
-     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or n.kind=='comment'and L.t('Новый комментарий от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(nameLine(n.actor,9,'NotificationDate'..i,P.muted,'@'..n.actor.username..' · '..L.date(n.createdAt)));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
+     local copy=k:make(UE.UVerticalBox,'OnlineNotificationCopy'..i);copy:AddChild(k:text(n.kind=='like'and L.t('Новый лайк от {name}',{name=n.actor.displayName})or n.kind=='comment'and L.t('Новый комментарий от {name}',{name=n.actor.displayName})or n.kind=='mention'and L.t('Упоминание от {name}',{name=n.actor.displayName})or L.t('Новая подписка от {name}',{name=n.actor.displayName}),12,'OnlineNotificationText'..i,P.ink,true,true,true));copy:AddChild(nameLine(n.actor,9,'NotificationDate'..i,P.muted,'@'..n.actor.username..' · '..L.date(n.createdAt)));Kit.fill(row:AddChildToHorizontalBox(copy)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
      if not n.isRead then row:AddChildToHorizontalBox(k:text('●',12,'OnlineNotificationUnread'..i,P.accent,true)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)end
      local card=k:button('OnlineNotification'..i,k:panel('OnlineNotificationSurface'..i,row,9,n.isRead and P.white or P.blush),function()action('notification',n)end);card:SetIsEnabled(not model.busy);content:AddChild(card);k:line(content,'OnlineNotificationRule'..i,P.line)
     end
@@ -236,6 +256,7 @@ function M.create(kit,action)
     end
     gap(10);input('message',L.t('Ваше сообщение'),model:messageDraft(model.conversationId),68);button(content,L.t('Отправить'),'SendMessage','sendMessage',nil,P.blue,true);gap(8);button(content,L.t('Отправить геолокацию'),'SendLocation','location');gap(8)
    elseif model.mode=='create'then
+    label(L.t('Упомяните игрока через @ID — он получит уведомление.'),11,'CreateMentionHint',P.muted);gap(8)
     require('B1.UI.AlbumComposer').render(self,model,k,content,button,label,gap,input,empty,action)
    elseif model.mode=='deletePost'then
    gap(18);label(L.t('Удалить эту публикацию?'),20,'DeleteTitle',P.ink,true);gap();label(L.t('Фото, лайки и комментарии исчезнут из Zoigram. Отменить удаление нельзя.'),12,'DeleteHelp',P.muted);gap()
@@ -243,15 +264,17 @@ function M.create(kit,action)
    button(content,L.t('Удалить публикацию'),'ConfirmDelete','confirmDelete',nil,P.accent,true);gap(8);button(content,L.t('Оставить публикацию'),'CancelDelete','back')
   elseif model.mode=='comments'then
    gap(8)
+   if model.focusCommentId then button(content,L.t('Показать все комментарии'),'AllComments','allComments');gap()end
    if #model.comments==0 then label(L.t('Пока тихо. Начните разговор.'),13,'NoComments',P.muted);gap()end
    for i,c in ipairs(model.comments)do
+     if c.id==model.focusCommentId then label(L.t('Вас упомянули в этом комментарии.'),10,'MentionTarget'..i,P.blue,true);gap(4)end
      local head=k:make(UE.UHorizontalBox,'OnlineCommentHead'..i);content:AddChild(head);head:AddChild(avatar(c.author,28,'CommentAvatar'..i));head:AddChild(k:button('OnlineCommentAuthor'..i,nameLine(c.author,12,'CommentAuthorLabel'..i),function()action('profile',c.author.id)end,6));gap(4);label(c.text,12,'CommentText'..i)
      if model.me and c.author.id==model.me.id then content:AddChild(k:button('OnlineDeleteComment'..i,k:text(L.t('Удалить'),10,'OnlineDeleteCommentLabel'..i,P.muted),function()action('deleteComment',c)end,5))
      elseif model.me then content:AddChild(k:button('OnlineReportComment'..i,k:text('⚑ '..L.t('Пожаловаться'),10,'OnlineReportCommentLabel'..i,P.muted),function()action('report',{kind='comment',id=c.id})end,5))end
     gap();k:line(content,'OnlineCommentRule'..i,P.surface);gap()
    end
    if model.commentCursor then button(content,L.t('Ещё комментарии'),'MoreComments','moreComments');gap()end
-   input('comment',L.t('Ваш комментарий'),'',74);button(content,L.t('Отправить'),'Reply','reply',nil,P.accent,true)
+   input('comment',L.t('Ваш комментарий'),'',74);label(L.t('Упомяните игрока через @ID — он получит уведомление.'),11,'CommentMentionHint',P.muted);gap(8);button(content,L.t('Отправить'),'Reply','reply',nil,P.accent,true)
   elseif model.mode=='edit'then
    button(content,L.t('Вход и восстановление'),'AccountAccess','accountAccess',nil,P.blue);gap(8)
    if not model.me.accountConfigured then label(L.t('Настройте логин и пароль до выхода из аккаунта.'),11,'AccountSetupHint',P.accent);gap(8)end
@@ -285,7 +308,11 @@ function M.create(kit,action)
    content:AddChild(k:text(L.t('Жалоба попадёт только владельцу Zoigram. Игрок не увидит, кто её отправил.'),11,'OnlineReportPrivacy',P.muted,false,false,true));gap(20)
    input('reason',L.t('Что произошло?'),L.t('Спам или нежелательный контент'),105);button(content,L.t('Отправить жалобу'),'SendReport','sendReport',nil,P.accent,true);gap(8);button(content,L.t('Отмена'),'CancelReport','back')
    elseif model.mode=='following'or model.mode=='blocks'then
-   gap();for i,p in ipairs(model.accounts or{})do button(content,p.displayName..' · @'..p.username,'FollowingAccount'..i,'profile',p.id);if model.mode=='blocks'then gap(4);button(content,L.t('Разблокировать'),'Unblock'..i,'unblock',p.id)end;gap()end
+   gap();for i,p in ipairs(model.accounts or{})do
+    local names=k:make(UE.UVerticalBox,'OnlineFollowingNames'..i);names:AddChild(nameLine(p,12,'FollowingName'..i));names:AddChild(k:text('@'..p.username,10,'OnlineFollowingHandle'..i,P.muted,false,true))
+    local account=k:button('OnlineFollowingAccount'..i,k:roundedPanel('OnlineFollowingSurface'..i,names,12,P.surface,10),function()action('profile',p.id)end);account:SetIsEnabled(not model.busy);content:AddChild(account)
+    if model.mode=='blocks'then gap(4);button(content,L.t('Разблокировать'),'Unblock'..i,'unblock',p.id)end;gap()
+   end
    if #(model.accounts or{})==0 then label(L.t('Здесь пока никого.'),13,'AccountsEmpty',P.muted)end
     if model.mode=='following'and model.accountsCursor then button(content,L.t('Показать ещё'),'MoreAccounts','moreAccounts')end
    end

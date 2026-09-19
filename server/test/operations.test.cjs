@@ -96,4 +96,12 @@ test('owner summary separates connection failures and client reports from server
  ops.record({status:503});ops.record({status:500});snapshot=ops.snapshot();assert.equal(snapshot.errorSummary.server5xx,2);assert.equal(snapshot.errorSummary.busyResponses,1);
  now+=86400001;snapshot=ops.snapshot();assert.equal(snapshot.errors24h,0);assert.equal(snapshot.errorSummary.server5xx,0);assert.equal(snapshot.errorSummary.uploadConnections,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM operational_errors').get().n,7);
 });
-
+test('upload error history distinguishes safe reasons and stages without persisting arbitrary request data',t=>{
+ const db=openStore(':memory:');t.after(()=>db.close());const ops=createOperations({db,budget:100000,gate:{active:0}}),secret='private-request-path-token',req=method=>({method,headers:{'x-zoigram-version':'0.9.0'}}),url=p=>new URL(p+'?secret='+secret,'https://example.invalid');
+ for(const [method,path,status,code,stage]of [['POST','/api/uploads',429,'upload_slots_full','upload_start'],['PUT','/api/uploads/abcdefgh/0',429,'rate_limit','upload_part'],['POST','/api/uploads/abcdefgh/complete',429,'daily_posts_limit','upload_complete'],['DELETE','/api/uploads/abcdefgh',409,'upload_has_photos','upload_cancel']]){
+  ops.capture(req(method),{},url(path),status,{code,stage:secret,message:secret});const row=db.prepare('SELECT * FROM operational_errors ORDER BY id DESC LIMIT 1').get();assert.equal(row.code,code);assert.equal(row.stage,stage);
+ }
+ assert.equal(ops.capture(req('GET'),{},url('/api/uploads/abcdefgh'),410,{code:'upload_expired'}),null);
+ ops.record({route:'upload_resumable',code:secret,status:429,stage:secret});ops.record({route:'upload_resumable',code:'upload_slots_full',status:500,stage:'upload_start'});
+ const rows=ops.list(new URLSearchParams()).items;assert(!JSON.stringify(rows).includes(secret));assert.equal(rows[0].code,'server_error');assert.equal(rows[1].code,'rate_limit');assert.equal(rows[1].stage,null);assert.equal(rows.length,6);
+});

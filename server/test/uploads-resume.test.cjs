@@ -1,13 +1,13 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto'),sharp=require('sharp'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {createApp}=require('../src/app.cjs'),{identity,session}=require('../src/store.cjs'),Albums=require('../src/albums.cjs'),{MAX_INPUT,TTL}=require('../src/uploads.cjs');
+const {createApp}=require('../src/app.cjs'),{identity,session}=require('../src/store.cjs'),Albums=require('../src/albums.cjs'),{MAX_INPUT,TTL,EMPTY_GRACE}=require('../src/uploads.cjs');
 const fail=(status,message)=>{throw Object.assign(Error(message),{status})};
 async function fixture(t,options={}){
  let app=createApp({database:':memory:',origin:'http://127.0.0.1',...options});
  const listen=async()=>new Promise(r=>app.server.listen(0,'127.0.0.1',r));await listen();t.after(()=>app.close());
  const users=['author','viewer'].map(n=>{const p=identity(app.db,'test',n);return {...p,...session(app.db,p.id)}});
  const photos=await Promise.all(['#bb2244','#2244bb','#44bb22'].map((color,i)=>sharp({create:{width:96+i*8,height:80+i*8,channels:3,background:color}}).png().toBuffer()));
- async function call(method,route,body,user=users[0],headers={}){const u=new URL(route,'http://localhost');const r=await fetch('http://127.0.0.1:'+app.server.address().port+u.pathname+u.search,{method,headers:{...(user?{Authorization:'Bearer '+user.token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},body:body!==undefined?JSON.stringify(body):undefined});return {status:r.status,body:(r.headers.get('content-type')||'').includes('json')?await r.json():Buffer.from(await r.arrayBuffer())}}
+ async function call(method,route,body,user=users[0],headers={}){const u=new URL(route,'http://localhost');const r=await fetch('http://127.0.0.1:'+app.server.address().port+u.pathname+u.search,{method,headers:{...(user?{Authorization:'Bearer '+user.token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},body:body!==undefined?JSON.stringify(body):undefined});return {status:r.status,headers:r.headers,body:(r.headers.get('content-type')||'').includes('json')?await r.json():Buffer.from(await r.arrayBuffer())}}
  const start=(count=3,requestId=crypto.randomUUID(),user=users[0],caption='Ordered album')=>call('POST','/api/uploads',{requestId,count,caption},user);
  const put=(id,index,photo=photos[index],user=users[0])=>call('PUT','/api/uploads/'+id+'/'+index,{imageBase64:photo.toString('base64')},user);
  const done=(id,user=users[0])=>call('POST','/api/uploads/'+id+'/complete',{},user);
@@ -100,4 +100,35 @@ test('an old completion body cannot publish a cancelled and recreated upload wit
   client.end('}');assert.equal((await pending).status,409);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM posts').get().n,0);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,1);
   const result=await f.done(id);assert.equal(result.status,200);assert.equal(result.body.post.width,104);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM posts').get().n,1);
  }finally{f.app.server.off('request',onRequest);client.destroy();await pending.catch(()=>{})}
+});
+test('new attempts reclaim abandoned empty slots from old clients but preserve received photos and resume identities',async t=>{
+ const f=await fixture(t),ids=Array.from({length:3},()=>crypto.randomUUID());for(const id of ids)await f.start(1,id);await f.put(ids[0],0);
+ const part=f.app.db.prepare('SELECT * FROM upload_parts').get(),oldGeneration=f.app.db.prepare('SELECT generation FROM upload_sessions WHERE request_id=?').get(ids[0]).generation;
+ f.app.db.prepare('UPDATE upload_sessions SET created_at=?').run(Date.now()-EMPTY_GRACE-1000);
+ assert.equal((await f.start(1)).status,200);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_sessions').get().n,2);assert.deepEqual(f.app.db.prepare('SELECT * FROM upload_parts').get(),part);assert.equal(f.app.db.prepare('SELECT generation FROM upload_sessions WHERE request_id=?').get(ids[0]).generation,oldGeneration);
+ assert.deepEqual((await f.call('GET','/api/uploads/'+ids[0])).body.received,[0]);assert.equal((await f.start(1,ids[0])).status,200);assert.equal((await f.done(ids[0])).status,200);
+ assert.equal((await f.start(1,ids[1])).status,200);assert.deepEqual((await f.call('GET','/api/uploads/'+ids[1])).body.received,[]);
+});
+test('recent empty sessions receive an accurate slot retry time and are not evicted on rapid retries',async t=>{
+ const f=await fixture(t);for(let i=0;i<3;i++)await f.start(1);const denied=await f.start(1);assert.equal(denied.status,429);assert.equal(denied.body.code,'upload_slots_full');assert(denied.body.retryAfter>=115&&denied.body.retryAfter<=120);assert.equal(Number(denied.headers.get('retry-after')),denied.body.retryAfter);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_sessions').get().n,3);
+ const event=f.app.db.prepare('SELECT code,stage FROM operational_errors ORDER BY id DESC LIMIT 1').get();assert.equal(event.code,'upload_slots_full');assert.equal(event.stage,'upload_start');
+});
+test('empty-only cleanup cannot erase received parts or a published post and remains owner-bound',async t=>{
+ const f=await fixture(t),id=crypto.randomUUID();await f.start(1,id);assert.equal((await f.call('DELETE','/api/uploads/'+id,{emptyOnly:true},f.users[1])).status,410);
+ assert.equal((await f.call('DELETE','/api/uploads/'+id,{emptyOnly:true})).status,200);await f.start(1,id);await f.put(id,0);const part=f.app.db.prepare('SELECT * FROM upload_parts').get();
+ const blocked=await f.call('DELETE','/api/uploads/'+id,{emptyOnly:true});assert.equal(blocked.status,409);assert.equal(blocked.body.code,'upload_has_photos');assert.deepEqual(f.app.db.prepare('SELECT * FROM upload_parts').get(),part);
+ const post=(await f.done(id)).body.post;assert.equal((await f.call('DELETE','/api/uploads/'+id,{emptyOnly:true})).status,409);assert.equal((await f.call('GET','/api/posts/'+post.id)).status,200);
+});
+test('abandoned-slot recovery and empty-only cleanup protect an image while conversion is in flight',async t=>{
+ const f=await fixture(t),ids=Array.from({length:3},()=>crypto.randomUUID());for(const id of ids)await f.start(1,id);await f.put(ids[1],0);await f.put(ids[2],0);f.app.db.prepare('UPDATE upload_sessions SET created_at=?').run(Date.now()-EMPTY_GRACE-1000);
+ const convert=Albums.convert;let release,started,pending;const entered=new Promise(r=>started=r),continueConversion=new Promise(r=>release=r);Albums.convert=async(...args)=>{started();await continueConversion;return convert(...args)};
+ try{pending=f.put(ids[0],0);await entered;const denied=await f.start(1);assert.equal(denied.status,429);assert.equal(denied.body.retryAfter,60);const cleanup=await f.call('DELETE','/api/uploads/'+ids[0],{emptyOnly:true});assert.equal(cleanup.status,409);assert.equal(cleanup.body.code,'upload_in_progress');release();assert.equal((await pending).status,200);}finally{release();Albums.convert=convert;if(pending)await pending;}
+ assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,3);assert.equal((await f.done(ids[0])).status,200);
+});
+test('abandoned-slot recovery protects a partially received request and releases it after abort',async t=>{
+ const http=require('node:http'),f=await fixture(t),ids=Array.from({length:3},()=>crypto.randomUUID());for(const id of ids)await f.start(1,id);await f.put(ids[1],0);await f.put(ids[2],0);f.app.db.prepare('UPDATE upload_sessions SET created_at=?').run(Date.now()-EMPTY_GRACE-1000);
+ const route='/api/uploads/'+ids[0]+'/0';let incoming;const arrived=new Promise(r=>incoming=r),onRequest=req=>{if(req.url===route){f.app.server.off('request',onRequest);incoming(req)}};f.app.server.on('request',onRequest);
+ const client=http.request({host:'127.0.0.1',port:f.app.server.address().port,path:route,method:'PUT',headers:{Authorization:'Bearer '+f.users[0].token,'Content-Type':'application/json','Content-Length':5000}});client.on('error',()=>{});client.on('response',r=>r.resume());client.write('{');
+ try{await arrived;assert.equal((await f.start(1)).status,429);assert.equal((await f.call('DELETE','/api/uploads/'+ids[0],{emptyOnly:true})).body.code,'upload_in_progress');}finally{client.destroy();f.app.server.off('request',onRequest)}
+ await new Promise(r=>setTimeout(r,30));assert.equal((await f.start(1)).status,200);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM upload_parts').get().n,2);assert.equal(f.app.db.prepare('SELECT 1 FROM upload_sessions WHERE request_id=?').get(ids[0]),undefined);
 });

@@ -38,18 +38,36 @@
   var body=job.body||{},id=body.requestId;
   if(typeof id!=='string'||!/^[A-Za-z0-9_-]{8,100}$/.test(id))throw error('Не указан идентификатор отправки.','response');
   await progress('Возобновление загрузки…');
+  // Read the first missing local photo before allocating a slot. Previously a missing
+  // Photo Mode file could leave an empty server session behind on every attempt.
+  var state=await send('GET','/api/uploads/'+id),existing=state.status>=200&&state.status<300;
+  if(!existing&&state.status!==410&&state.status!==404)return state;
+  if(existing&&state.body.post)return state;
+  function positions(value){if(!Array.isArray(value)||value.some(function(x){return !Number.isInteger(x)||x<0||x>=files.length;})||new Set(value).size!==value.length)throw error('Сервер вернул непонятный ответ.','response');return value;}
+  var received=existing?positions(state.body.received):[],emptyOnlyCancellation=existing&&state.body.emptyOnlyCancellation===true,first=-1,prepared=null;
+  async function prepareFile(index){
+   await progress('Чтение снимка…',undefined,undefined,index+1,files.length);
+   var local;try{local=await read(files[index]);}catch(e){e.photoCode='photo_read';e.local=true;throw e;}
+   await progress('Подготовка снимка…',local&&local.byteLength,undefined,index+1,files.length);
+   return prepare(local,25*1024*1024);
+  }
+  async function preserveOrRelease(e){
+   // Never cancel after a network failure: the server might have received the photo.
+   // The server also rechecks emptiness atomically if another device is uploading.
+   if(e.local&&existing&&emptyOnlyCancellation&&received.length===0)try{await send('DELETE','/api/uploads/'+id,{emptyOnly:true});}catch(ignore){}
+   throw e;
+  }
+  for(var p=0;p<files.length;p++)if(received.indexOf(p)===-1){first=p;break;}
+  if(first!==-1)try{prepared=await prepareFile(first);}catch(e){return preserveOrRelease(e);}
   var begin=await send('POST','/api/uploads',{requestId:id,caption:body.caption||'',count:files.length});
   if(begin.status<200||begin.status>=300)return begin;if(begin.body.post)return begin;
-  var received=begin.body.received;if(!Array.isArray(received)||received.some(function(x){return !Number.isInteger(x)||x<0||x>=files.length;}))throw error('Сервер вернул непонятный ответ.','response');
+  existing=true;emptyOnlyCancellation=begin.body.emptyOnlyCancellation===true;received=positions(begin.body.received);
   for(var i=0;i<files.length;i++){
    if(received.indexOf(i)!==-1)continue;
-   await progress('Чтение снимка…',undefined,undefined,i+1,files.length);
-   var local;try{local=await read(files[i]);}catch(e){e.photoCode='photo_read';e.local=true;throw e;}
-   await progress('Подготовка снимка…',local.byteLength,undefined,i+1,files.length);
-   var photo=await prepare(local,25*1024*1024);
+   var photo;try{photo=i===first&&prepared?prepared:await prepareFile(i);prepared=null;}catch(e){return preserveOrRelease(e);}
    await progress('Отправка фотографии…',photo.bytes,undefined,i+1,files.length);
    var part=await send('PUT','/api/uploads/'+id+'/'+i,{imageBase64:encode(photo.buffer)},function(percent){progress(percent===100?'Обработка фотографий…':'Отправка фотографии…',photo.bytes,percent,i+1,files.length).catch(function(){});});
-   if(part.status<200||part.status>=300)return part;
+   photo=null;if(part.status<200||part.status>=300)return part;received.push(i);
   }
   await progress('Публикация альбома…');return send('POST','/api/uploads/'+id+'/complete',{});
  }

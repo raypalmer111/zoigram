@@ -1918,5 +1918,101 @@
     "Back",
     "Retour",
     "뒤로"
+  ],
+  [
+    "Создатель Zoigram",
+    "Creator of Zoigram",
+    "Créateur de Zoigram",
+    "Zoigram 제작자"
+  ],
+  [
+    "Упомяните игрока через @ID — он получит уведомление.",
+    "Mention a player with @ID to notify them.",
+    "Mentionnez un joueur avec @ID pour le prévenir.",
+    "@ID로 플레이어를 언급하면 알림이 전송됩니다."
+  ],
+  [
+    "Закрепить в профиле",
+    "Pin to profile",
+    "Épingler au profil",
+    "프로필에 고정"
+  ],
+  [
+    "Открепить от профиля",
+    "Unpin from profile",
+    "Désépingler du profil",
+    "프로필 고정 해제"
+  ],
+  [
+    "Публикация закреплена.",
+    "Post pinned.",
+    "Publication épinglée.",
+    "게시물이 고정되었습니다."
+  ],
+  [
+    "Публикация откреплена.",
+    "Post unpinned.",
+    "Publication désépinglée.",
+    "게시물 고정이 해제되었습니다."
+  ],
+  [
+    "Закреплено",
+    "Pinned",
+    "Épinglé",
+    "고정됨"
+  ],
+  [
+    "Упоминание от {name}",
+    "{name} mentioned you",
+    "{name} vous a mentionné",
+    "{name}님이 회원님을 언급했습니다"
+  ],
+  [
+    "Лайки, комментарии, упоминания и подписки появятся здесь.",
+    "Likes, comments, mentions and follows will appear here.",
+    "Les mentions J’aime, commentaires, mentions et abonnements apparaîtront ici.",
+    "좋아요, 댓글, 언급 및 팔로우 알림이 여기에 표시됩니다."
+  ],
+  [
+    "Показать все комментарии",
+    "Show all comments",
+    "Afficher tous les commentaires",
+    "모든 댓글 보기"
+  ],
+  [
+    "Вас упомянули в этом комментарии.",
+    "You were mentioned in this comment.",
+    "Vous avez été mentionné dans ce commentaire.",
+    "이 댓글에서 회원님이 언급되었습니다."
+  ],
+  [
+    "Повторите через {seconds} сек.",
+    "Try again in {seconds} seconds.",
+    "Réessayez dans {seconds} secondes.",
+    "{seconds}초 후에 다시 시도해 주세요."
+  ],
+  [
+    "Можно закрепить только свою публикацию.",
+    "You can only pin your own posts.",
+    "Vous ne pouvez épingler que vos propres publications.",
+    "자신의 게시물만 고정할 수 있습니다."
+  ],
+  [
+    "Можно закрепить не больше 3 публикаций.",
+    "You can pin up to 3 posts.",
+    "Vous pouvez épingler jusqu’à 3 publications.",
+    "게시물은 최대 3개까지 고정할 수 있습니다."
+  ],
+  [
+    "Фотография ещё отправляется. Повторите позже.",
+    "The photo is still uploading. Try again later.",
+    "La photo est encore en cours d’envoi. Réessayez plus tard.",
+    "사진을 업로드하는 중입니다. 나중에 다시 시도해 주세요."
+  ],
+  [
+    "Загруженные фотографии сохранены. Продолжите отправку.",
+    "Your uploaded photos are saved. Continue uploading.",
+    "Vos photos envoyées sont conservées. Reprenez l’envoi.",
+    "업로드된 사진은 저장되었습니다. 업로드를 계속해 주세요."
   ]
 ]

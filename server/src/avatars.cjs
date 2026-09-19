@@ -16,8 +16,8 @@ function createAvatars({db,origin,secret,budget,fail,limit,json,send,authorize,t
   if(Array.isArray(value)){value.forEach(item=>decorate(item,session));return value}
   if(typeof value.id==='string'&&typeof value.username==='string'&&typeof value.displayName==='string'){
    const avatar=db.prepare('SELECT revision FROM avatars WHERE profile_id=?').get(value.id);
-   value.avatarVersion=avatar?.revision||null;value.avatarUrl=null;
-   if(avatar){const payload=Buffer.from(JSON.stringify({a:value.id,r:avatar.revision,s:session.id,e:Date.now()+900000})).toString('base64url');value.avatarUrl=origin+'/api/avatars/'+value.id+'?grant='+payload+'.'+signature(payload)}
+   value.avatarVersion=avatar?.revision||null;value.avatarUrl=null;value.avatarExpiresAt=null;
+   if(avatar){value.avatarExpiresAt=Date.now()+900000;const payload=Buffer.from(JSON.stringify({a:value.id,r:avatar.revision,s:session.id,e:value.avatarExpiresAt})).toString('base64url');value.avatarUrl=origin+'/api/avatars/'+value.id+'?grant='+payload+'.'+signature(payload)}
   }
   for(const item of Object.values(value))if(item&&typeof item==='object')decorate(item,session);
   return value;

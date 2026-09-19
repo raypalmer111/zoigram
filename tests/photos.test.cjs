@@ -57,3 +57,34 @@ test('PNG pixel counts above 64 MP are rejected before browser allocation despit
 test('a resize above the byte limit never falls back to a source the server cannot decode',async()=>{
  const runtime=canvasRuntime(6000,6000,Buffer.alloc(1024));await assert.rejects(()=>photos(runtime.extra).prepare(pngHeader(6000,6000),512),error=>error.photoCode==='photo_prepare');
 });
+const draft={body:{requestId:'safe-upload-draft',caption:'A view'}},twoFiles=['outgoing_1.png','outgoing_2.png'],progress=async()=>{};
+test('a missing first photo allocates no resumable server session',async()=>{
+ const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push([method,url]);return {status:410,body:{}};},async()=>{throw Error('missing local photo')},progress),e=>e.photoCode==='photo_read'&&e.local===true);
+ assert.deepEqual(calls,[['GET','/api/uploads/safe-upload-draft']]);
+});
+test('an oversized first photo is rejected before creating a server session',async()=>{
+ const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push([method,url]);return {status:410,body:{}};},async()=>new ArrayBuffer(25*MiB+1),progress),e=>e.photoCode==='photo_size');assert.equal(calls.length,1);
+});
+test('an old empty draft is cancelled safely after local read failure, even if cleanup is unavailable',async()=>{
+ for(const cleanup of [200,409,'network']){
+  const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url,body)=>{calls.push({method,url,body});if(method==='GET')return {status:200,body:{received:[],emptyOnlyCancellation:true}};if(cleanup==='network')throw Error('offline');return {status:cleanup,body:{}};},async()=>{throw Error('missing local photo')},progress),e=>e.photoCode==='photo_read');
+  assert.equal(calls.length,2);assert.equal(calls[1].method,'DELETE');assert.equal(calls[1].body.emptyOnly,true);
+ }
+});
+test('resume skips received photos and never deletes them when another local file is missing',async()=>{
+ const calls=[],reads=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push([method,url]);return {status:200,body:{received:[0]}};},async file=>{reads.push(file);throw Error('missing photo')},progress),e=>e.local===true);
+ assert.deepEqual(reads,['outgoing_2.png']);assert.equal(calls.length,1);
+});
+test('a completed request succeeds without reading a missing local photo or creating another post',async()=>{
+ const result=await photos().upload(draft,twoFiles,async()=>({status:200,body:{post:{id:9}}}),async()=>{throw Error('must not read')},progress);assert.equal(result.body.post.id,9);
+});
+test('local preflight happens before creation and a later missing photo retains the successfully received part',async()=>{
+ const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push(method+' '+url);if(method==='GET')return {status:410,body:{}};return {status:200,body:{received:[]}};},async file=>{calls.push('read '+file);if(file===twoFiles[1])throw Error('missing second');return new ArrayBuffer(24);},progress),e=>e.photoCode==='photo_read');
+ assert.deepEqual(calls,['GET /api/uploads/safe-upload-draft','read outgoing_1.png','POST /api/uploads','PUT /api/uploads/safe-upload-draft/0','read outgoing_2.png']);
+});
+test('an ambiguous photo response never triggers automatic cancellation',async()=>{
+ const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push(method);if(method==='GET')return {status:410,body:{}};if(method==='PUT')throw Error('response disconnected');return {status:200,body:{received:[]}};},async()=>new ArrayBuffer(24),progress),/response disconnected/);assert.deepEqual(calls,['GET','POST','PUT']);
+});
+test('an older server without atomic empty-only cancellation never receives an unsafe DELETE',async()=>{
+ const calls=[];await assert.rejects(()=>photos().upload(draft,twoFiles,async(method,url)=>{calls.push(method);return {status:200,body:{received:[]}};},async()=>{throw Error('missing photo')},progress),e=>e.local===true);assert.deepEqual(calls,['GET']);
+});
