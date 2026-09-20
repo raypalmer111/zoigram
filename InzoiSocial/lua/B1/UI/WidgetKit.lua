@@ -3,6 +3,11 @@
 local TextJustify={Left=0,Center=1};local BrushNoDraw=0;local SizeFill=1
 local Glyphs=require('B1.UI.Glyphs')
 local M={};M.__index=M;local serial=0
+function M.avatarInitial(profile)
+    local value=(profile.displayName or''):match('^[A-Za-z0-9]')or profile.username or'z'
+    -- Take the complete UTF-8 code point; string.sub(1,1) splits non-Latin IDs.
+    return (value:match('^[%z\1-\127\194-\244][\128-\191]*')or'Z'):upper()
+end
 function M.color(r,g,b,a) local c=UE.FLinearColor();c.R=r;c.G=g;c.B=b;c.A=a or 1;return c end
 local function rgb(r,g,b)
     local function linear(v)v=v/255;return v<=.04045 and v/12.92 or((v+.055)/1.055)^2.4 end

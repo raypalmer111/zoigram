@@ -26,7 +26,7 @@ test('Creator is exclusive to configured OWNER_PROFILE_ID and is independent of 
  const player=(await f.get('/api/profiles/'+f.player.id)).profile;flag(player,false);assert.equal(player.verified,true);assert.equal((await f.get('/api/profiles/'+f.owner.id)).profile.verified,false);
  const adminOwner=(await f.admin('GET','/admin/api/profiles/'+f.owner.id)).body;flag(adminOwner,true);assert.equal(adminOwner.isOwner,true);flag((await f.admin('GET','/admin/api/profiles/'+f.player.id)).body,false);
  const state=(await f.admin('GET','/admin/api/session')).body;assert.equal(state.owner.creator,true);
- assert.equal(f.db.prepare('PRAGMA user_version').get().user_version,10);
+ assert.equal(f.db.prepare('PRAGMA user_version').get().user_version,11);
 });
 
 test('all shared public profile shapes carry the creator flag, including login and social lists',async t=>{
@@ -49,8 +49,8 @@ test('all shared public profile shapes carry the creator flag, including login a
 test('Creator survives a public ID rename and cannot move to a matching username or client-supplied flag',async t=>{
  const f=await fixture(t);
  assert.equal((await f.admin('POST','/admin/api/actions',{action:'set-id',targetId:f.owner.id,expectedPublicId:'raypalmer',publicId:'renamed_author',reason:'Rename keeps immutable identity'})).status,200);
- assert.equal((await f.admin('POST','/admin/api/actions',{action:'set-id',targetId:f.player.id,expectedPublicId:f.player.username,publicId:'raypalmer',reason:'Username does not confer creator role'})).status,200);
- flag((await f.get('/api/profiles/'+f.owner.id)).profile,true);const player=(await f.get('/api/profiles/'+f.player.id)).profile;flag(player,false);assert.equal(player.username,'raypalmer');
+ assert.equal((await f.admin('POST','/admin/api/actions',{action:'set-id',targetId:f.player.id,expectedPublicId:f.player.username,publicId:'raypalmer',reason:'Former IDs stay reserved to the original account'})).status,400);
+ flag((await f.get('/api/profiles/'+f.owner.id)).profile,true);const player=(await f.get('/api/profiles/'+f.player.id)).profile;flag(player,false);assert.equal(player.username,f.player.username);
  const forged=await f.call('PATCH','/api/me',{displayName:'Creator of Zoigram',bio:'Test',creator:true,isCreator:true,ownerProfileId:f.player.id},f.player);assert.equal(forged.status,200);flag(forged.body.profile,false);
  const hidden=await f.call('PATCH','/api/me',{displayName:'Owner',bio:'Test',creator:false},f.owner);assert.equal(hidden.status,200);flag(hidden.body.profile,true);
  assert.equal((await f.admin('POST','/admin/api/actions',{action:'set-creator',targetId:f.player.id,creator:true,reason:'Unsupported arbitrary assignment'})).status,400);

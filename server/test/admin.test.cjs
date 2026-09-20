@@ -29,7 +29,7 @@ test('CSRF and cross-origin checks prevent mutations and logout does not end the
 });
 test('rename preserves identity and sessions, records the owner, and rejects stale changes',async t=>{
  const f=await fixture(t),game=session(f.app.db,f.other.id),body={action:'set-id',targetId:f.other.id,expectedPublicId:f.other.username,publicId:'new_public_id',reason:'Requested by player',actorId:'forged'};const changed=await f.call('/admin/api/actions',{body});assert.equal(changed.status,200);assert.equal(changed.data.publicId,'new_public_id');assert(f.app.db.prepare('SELECT 1 FROM sessions WHERE token_hash=?').get(hash(game.token)));const audit=(await f.call('/admin/api/audit')).data.items[0];assert.equal(audit.actor.id,f.owner.id);assert.equal(audit.details.previousId,f.other.username);assert.equal(audit.reason,body.reason);
- assert.equal((await f.call('/admin/api/actions',{body:{...body,publicId:'another'}})).status,409);assert.equal((await f.call('/admin/api/actions',{body:{...body,expectedPublicId:'new_public_id',publicId:'with space'}})).status,400);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM moderation').get().n,1);
+ assert.equal((await f.call('/admin/api/actions',{body:{...body,publicId:'another'}})).status,409);assert.equal((await f.call('/admin/api/actions',{body:{...body,expectedPublicId:'new_public_id',publicId:'✨ ♥'}})).status,400);assert.equal(f.app.db.prepare('SELECT COUNT(*) n FROM moderation').get().n,1);
  assert.equal((await f.call('/admin/api/actions',{body:{action:'ban',targetId:f.owner.id,reason:'Mistake'}})).status,403);
 });
 test('ban revokes game access and unban restores visibility; unchanged actions do not duplicate audit',async t=>{

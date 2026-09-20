@@ -1,27 +1,7 @@
-# Языки Zoigram
+# Zoigram localization
 
-Интерфейс Zoigram поддерживает русский, английский, французский и корейский. Начиная с серверного исправления 0.15.1 страницы входа, регистрации и восстановления пароля открываются на английском.
+Client 1.0.0 and server 0.22.0 include English, Russian, French, Korean, German and Simplified Chinese. The native phone reads UE.UKismetInternationalizationLibrary.GetCurrentLanguage(), checks for changes every two seconds and falls back to English for unsupported languages. A legacy manual language setting is ignored at app initialization. Regional tags such as de-DE and zh-Hans-CN map to their base language. Chinese currently uses Simplified Chinese for all zh variants.
 
-Откройте **Zoigram → Профиль → ⋯ → Язык** и выберите **Русский**, **English**, **Français**, **한국어** или **Как в игре**. До входа в аккаунт настройки доступны в верхней части экрана входа. Изменение применяется сразу, перезапуск не нужен. Выбор сохраняется на этом компьютере.
+Only system text is translated. Player names, captions, comments and messages are unchanged. The separate account sign-in/recovery pages remain in English by the owner's request. Send location displays the literal Coming soon in every language and does not collect or send location data.
 
-По умолчанию используется язык inZOI. Региональные варианты (`en-US`, `fr-CA`, `ko-KR`, `ru-RU`) распознаются. Если язык игры не поддерживается, Zoigram использует английский. Мод не меняет язык самой игры.
-
-Переведены навигация, профиль, создание и удаление публикаций, комментарии, подписки, блокировки, жалобы, сообщения фоторежима и сети, и личные сообщения. Формат дат зависит от языка. ID, сохранённые имена, описания профилей, подписи фотографий и комментарии не переводятся.
-
-## Как менять переводы
-
-Единый исходник — `locales/messages.json`. В каждой строке четыре значения в порядке **русский, английский, французский, корейский**. Русский текст служит постоянным идентификатором сообщения. Параметры `{count}` и `{code}` должны присутствовать во всех вариантах. Не удаляйте и не переводите имена параметров.
-
-После правки:
-
-```powershell
-node tools/build-locales.cjs
-node --test tests/*.test.cjs server/test/*.test.cjs
-node tools/check.cjs
-```
-
-Генератор создаёт Lua-каталог, каталог скрытого сетевого модуля и серверный JSON. Эти три файла не нужно редактировать вручную. Проверки обнаруживают пропуски, дубликаты, несовпадающие параметры и устаревшие сгенерированные файлы.
-
-Игра отправляет `Accept-Language` с каждым запросом. Сервер выбирает язык отдельно для каждого запроса, поэтому пользователи разных языков могут пользоваться одним сообществом одновременно. Сообщения API содержат перевод и исходный `messageKey`; мод может отобразить ошибку на текущем языке. Страницы `/connect` и `/account/*` используют английский независимо от языка игры, параметра `lang` или cookie. Это относится и к сообщениям об ошибках формы. Новые ссылки содержат `lang=en`; прежние ссылки с другим языком также работают. Проверки одноразового кода, cookie сеанса и CSRF сохранены.
-
-Для исправления языка страниц входа достаточно обновить сервер до 0.15.1. Клиент 0.14.0 менять не нужно. Исправление не требует миграции базы данных или повторной регистрации.
+Edit locales/messages.json for RU/EN/FR/KO and the matching keyed catalog in locales/messages.de.json or locales/messages.zh.json. Run node tools/build-locales.cjs. It verifies complete key parity and identical placeholders before writing Lua, bridge and server catalogs. Run node --test tests/*.test.cjs server/test/*.test.cjs for catalog, network and API checks. Offline Lua checks use tools/test-lua-offline.cjs with the development Fengari dependency; they do not establish compatibility with the native game. Gameplay effects also require verification in a loaded world.

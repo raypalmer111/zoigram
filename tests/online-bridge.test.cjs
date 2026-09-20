@@ -2,14 +2,45 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync('InzoiSocial/ui/OnlineBridge/app.js','utf8');
 const encode=v=>Buffer.from(JSON.stringify(v)).toString('hex'),decode=v=>JSON.parse(Buffer.from(v,'hex'));
-async function fixture({session,route=()=>({status:200,body:{ok:true}}),previous}={}){
- const config={session:encode(session||{}),response:encode(previous||{})},calls=[],timers=new Map();let ready,tick,next=0;
+async function fixture({session,route=()=>({status:200,body:{ok:true}}),previous,cliHandler,cfgLoadHandler,clock=Date}={}){
+ const config={session:encode(session||{}),response:encode(previous||{})},calls=[],cliCalls=[],timers=new Map(),timerDelays=new Map();let ready,tick,next=0;
  class XHR{open(method,url){this.method=method;this.url=url;this.headers={};this.upload={}}setRequestHeader(k,v){this.headers[k]=v}abort(){this.aborted=true}send(body){this.body=body;calls.push(this);const r=route(this);if(r===null)return;this.status=r.status;this.response=r.raw;this.responseText=r.text!==undefined?r.text:JSON.stringify(r.body);if(this.upload.onprogress)this.upload.onprogress({lengthComputable:true,loaded:50,total:100});queueMicrotask(()=>{if(r.error){if(this.onerror)this.onerror();}else if(this.onload)this.onload();})}}
- const context={window:{inzoi:{cli:{execute:async(name,args)=>{if(name==='uimod.cfg_load')return {success:true,data:{value:config[args.key]}};config[args.key]=args.value;return {success:true,data:{saved:true}}}}}},engine:{on:(event,fn)=>{ready=fn}},XMLHttpRequest:XHR,Uint8Array,Date,JSON,Promise,Error,escape,unescape,encodeURIComponent,decodeURIComponent,setInterval:fn=>{tick=fn},setTimeout:fn=>{timers.set(++next,fn);return next},clearTimeout:id=>timers.delete(id)};
+ const context={window:{inzoi:{cli:{execute:async(name,args)=>{cliCalls.push({name,args:JSON.parse(JSON.stringify(args))});if(name==='uimod.cfg_load'){if(cfgLoadHandler){const result=await cfgLoadHandler(args,{config,calls,cliCalls});if(result!==undefined)return result;}return {success:true,data:{value:config[args.key]}};}if(name==='uimod.cfg_save'){config[args.key]=args.value;return {success:true,data:{saved:true}};}if(cliHandler)return cliHandler(name,args,{config,calls,cliCalls});throw Error('Unexpected game CLI '+name);}}}},engine:{on:(event,fn)=>{ready=fn}},XMLHttpRequest:XHR,Uint8Array,Date:clock,JSON,Promise,Error,escape,unescape,encodeURIComponent,decodeURIComponent,setInterval:fn=>{tick=fn},setTimeout:(fn,delay)=>{timers.set(++next,fn);timerDelays.set(next,delay);return next},clearTimeout:id=>{timers.delete(id);timerDelays.delete(id)}};
  vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/locales.js','utf8'),context);vm.runInNewContext(fs.readFileSync('InzoiSocial/ui/OnlineBridge/photos.js','utf8'),context);vm.runInNewContext(source,context);await ready();await new Promise(setImmediate);
- return {config,calls,timers,run:async(job)=>{config.request=encode({id:String(++next),createdAt:Date.now()/1000,method:'GET',server:'http://127.0.0.1:43821',path:'/api/me',...job});await tick();return decode(config.response)},start:job=>{config.request=encode({id:'timeout-job',createdAt:Date.now()/1000,server:'http://127.0.0.1:43821',...job});return tick()},tick};
+ return {config,calls,cliCalls,timers,timerDelays,run:async(job)=>{config.request=encode({id:String(++next),createdAt:clock.now()/1000,method:'GET',server:'http://127.0.0.1:43821',path:'/api/me',...job});await tick();return decode(config.response)},start:job=>{config.request=encode({id:'timeout-job',createdAt:clock.now()/1000,server:'http://127.0.0.1:43821',...job});return tick()},tick};
 }
 const session={server:'http://127.0.0.1:43821',token:'test-token',expiresAt:Date.now()+600000};
+const powerGrant={ability:'filming_learning',profileId:'11111111-1111-4111-8111-111111111111',multiplier:1.1,durationGameMinutes:60};
+function expectedCreatorRows(){
+ const modifier='Zoigram_Creator_Filming_Learning',add='Zoigram_Creator_Filming_Add',remove='Zoigram_Creator_Filming_Remove',buff='Zoigram_Creator_Filming_Focus';
+ const script=(id,command)=>({iD:id,scripts:[{ifType:'If',conditions:[],executes:[{baseObject:'Self',command,s1:modifier,s2:'None',f1:0,f2:0,prob:1}]}]});
+ const patchScript=(id,command)=>({ID:id,Scripts:[{IfType:'If',Conditions:[],Executes:[{BaseObject:'Self',Command:command,S1:modifier,S2:'None',F1:0,F2:0,Prob:1}]}]});
+ return [
+  {table:'Modifier',id:modifier,value:{iD:modifier,modifierList:[{modifierType:'SkillExp',modifierKey:'Filming',modifierCalcType:'Multiply',value:1.1}]},patchValue:{ID:modifier,ModifierList:[{ModifierType:'SkillExp',ModifierKey:'Filming',ModifierCalcType:'Multiply',Value:1.1}]}},
+  {table:'Script',id:add,value:script(add,'AddModifier'),patchValue:patchScript(add,'AddModifier')},{table:'Script',id:remove,value:script(remove,'RemoveModifier'),patchValue:patchScript(remove,'RemoveModifier')},
+  {table:'Buff',id:buff,value:{iD:buff,buffBasicInfo:{isEssential:false,duration:60,expireTime:{afterDay:-1,targetHour:-1,targetMinute:-1},tickInterval:0,scriptInterval:0,emotionId:'None',emotionValue:0,emotionReasonPriority:'Invalid',tags:[],tagIconId:'Skill_Icon_Filming'},buffDisplayInfo:{displayTextId:'',reasonTextId:'',iconId:'None',emotionColorId1:'None',emotionColorId2:'None',hiddenFromUI:true,alarmIconMaterialId:'None',isHighlight:false,emotionReasonTitleTextId:'',emotionReasonDescTextId:''},addScriptIdList:[add],cancelScriptIdList:[remove],finishScriptIdList:[remove],tickScriptIdList:[],intervalScriptIdList:[]},patchValue:{ID:buff,BuffBasicInfo:{IsEssential:false,duration:60,ExpireTime:{AfterDay:-1,TargetHour:-1,TargetMinute:-1},TickInterval:0,ScriptInterval:0,EmotionId:'None',EmotionValue:0,EmotionReasonPriority:'Invalid',Tags:[],TagIconId:'Skill_Icon_Filming'},BuffDisplayInfo:{DisplayTextId:'',ReasonTextId:'',IconId:'None',EmotionColorId1:'None',EmotionColorId2:'None',HiddenFromUI:true,AlarmIconMaterialId:'None',IsHighlight:false,EmotionReasonTitleTextId:'',EmotionReasonDescTextId:''},AddScriptIdList:[add],CancelScriptIdList:[remove],FinishScriptIdList:[remove],TickScriptIdList:[],IntervalScriptIdList:[]}}
+ ];
+}
+async function creatorFixture({existing=false,initial=[],route=()=>({status:200,body:{...powerGrant}}),cliOverride,auth=session,cfgLoadHandler,clock}={}){
+ const expected=expectedCreatorRows(),rows=new Map((existing?expected:initial).map(r=>[r.table+'/'+r.id,structuredClone(r.value)]));
+ const f=await fixture({session:auth,route,cfgLoadHandler,clock,cliHandler:async(name,args,state)=>{
+  if(cliOverride){const value=await cliOverride(name,args,state,rows);if(value!==undefined)return value;}
+  const alias=args.Alias||args.alias,row=args.Row||args.row;
+  if(name==='data.list_rows')return {success:true,data:[...rows.keys()].filter(k=>k.startsWith(alias+'/')).map(k=>k.slice(alias.length+1))};
+  if(name==='data.table_get')return {success:true,data:structuredClone(rows.get(alias+'/'+row))};
+  if(name==='data.patch'){
+   const method=args.Method||args.method,query=args.Query||args.query,raw=args.Value||args.value;
+   assert.equal(method,'Insert');const target=expected.find(r=>query===r.table+'[Id='+r.id+']');assert(target,'Only a fixed namespaced selector is allowed');assert(!rows.has(target.table+'/'+target.id),'Existing rows must not be overwritten');
+   assert.deepEqual(JSON.parse(raw),target.patchValue||target.value);rows.set(target.table+'/'+target.id,structuredClone(target.value));return {success:true,data:{ok:true}};
+  }
+  throw Error('Unexpected game CLI '+name);
+ }});return {...f,rows,expected};
+}
+test('Creator authorization reaches the exact authenticated endpoint and rejects target overrides',async()=>{
+ const f=await creatorFixture({existing:true});assert.equal((await f.run({path:'/api/me/creator-power'})).status,200);assert.equal(f.calls.at(-1).headers.Authorization,'Bearer test-token');
+ const before=f.calls.length;for(const path of ['/api/me/creator-power?profileId=other','/api/me/creator-power/activate','/api/me/creator-power/../avatar'])assert.equal((await f.run({path})).status,0);assert.equal(f.calls.length,before);
+ const noSession=await fixture();assert.equal((await noSession.run({path:'/api/me/creator-power'})).status,401);assert.equal(noSession.calls.length,0);
+});
 test('native activity, conversations and avatar actions reach authenticated API through the real allowlist',async()=>{
  const f=await fixture({session}),id='11111111-1111-4111-8111-111111111111';
  for(const path of ['/api/activity','/api/notifications','/api/notifications/read','/api/notifications?before=9','/api/conversations','/api/conversations/'+id+'/messages','/api/conversations/'+id+'/read','/api/me/avatar-upload','/api/me/avatar','/api/me/account-access']){
@@ -136,4 +167,74 @@ test('media renewal, pinning and safe empty-draft cleanup use the authenticated 
 test('resumable local-read failure does not reserve a slot and reports an unsubmitted photo error',async()=>{
  const f=await fixture({session,route:x=>x.url.endsWith('/api/diagnostics')?{status:202,body:{ok:true}}:x.url.startsWith('uploads/')?{status:404}:{status:410,body:{}}});
  const result=await f.run({...resumedJob,upload:['outgoing_1.png']});assert.equal(result.status,0);assert.equal(result.body.submitted,false);assert.equal(result.body.messageKey,'Не удалось прочитать снимок.');assert(!f.calls.some(x=>x.method==='POST'&&x.url.endsWith('/api/uploads')));
+});
+
+test('Creator registration inserts only four fixed definitions after a fresh grant and is idempotent',async()=>{
+ const f=await creatorFixture({route:()=>({status:200,body:{...powerGrant,command:'skill.add_exp',table:'Unrelated',value:{money:999},definitionsReady:true}})});
+ const first=await f.run({path:'/api/me/creator-power'});assert.equal(first.status,200);assert.deepEqual(first.body,{...powerGrant,definitionsReady:true});
+ const patches=f.cliCalls.filter(c=>c.name==='data.patch');assert.equal(patches.length,4);assert.equal(f.rows.size,4);
+ assert.deepEqual(patches.map(c=>c.args.Query||c.args.query),f.expected.map(r=>r.table+'[Id='+r.id+']'));
+ assert(f.cliCalls.filter(c=>!c.name.startsWith('uimod.')).every(c=>['data.list_rows','data.table_get','data.patch'].includes(c.name)));
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0].headers.Authorization,'Bearer test-token');
+ const second=await f.run({path:'/api/me/creator-power'});assert.equal(second.status,200);assert.equal(second.body.definitionsReady,true);assert.equal(f.cliCalls.filter(c=>c.name==='data.patch').length,4);assert.equal(f.calls.length,2,'Every activation still needs fresh server authorization');
+});
+
+test('invalid or revoked Creator permissions cannot trigger any local data access or patches',async()=>{
+ const bad=[{}, {...powerGrant,profileId:'not-a-uuid'}, {...powerGrant,multiplier:2}, {...powerGrant,durationGameMinutes:999}, {...powerGrant,ability:'money'}];
+ for(const body of bad){const f=await creatorFixture({route:()=>({status:200,body})});const r=await f.run({path:'/api/me/creator-power'});assert.equal(r.status,0);assert.equal(r.body.messageKey,'Суперспособность пока недоступна.');assert.equal(f.cliCalls.filter(c=>c.name.startsWith('data.')).length,0);}
+ for(const status of [401,403]){const f=await creatorFixture({route:()=>({status,body:{error:'Permission rejected'}})});assert.equal((await f.run({path:'/api/me/creator-power'})).status,status);assert.equal(f.cliCalls.filter(c=>c.name.startsWith('data.')).length,0);if(status===401)assert.deepEqual(decode(f.config.session),{});}
+ const f=await creatorFixture({auth:{}});assert.equal((await f.run({path:'/api/me/creator-power'})).status,401);assert.equal(f.calls.length,0);assert.equal(f.cliCalls.filter(c=>c.name.startsWith('data.')).length,0);
+});
+
+test('Creator registration preflights every collision and never overwrites an incompatible definition',async()=>{
+ const row=expectedCreatorRows().at(-1);row.value.finishScriptIdList=['Unrelated_Remove'];
+ const f=await creatorFixture({initial:[row]});const r=await f.run({path:'/api/me/creator-power'});assert.equal(r.status,0);assert.equal(f.cliCalls.filter(c=>c.name==='data.patch').length,0);assert.deepEqual(f.rows.get(row.table+'/'+row.id),row.value);
+});
+
+test('Creator registration rejects SDK false/error responses and mismatched readback',async()=>{
+ for(const failure of ['false','wrapped-false','flag-false','readback']){
+  const f=await creatorFixture({cliOverride:(name,args,state,rows)=>{
+   if(name==='data.patch'){
+    if(failure==='false')return false;if(failure==='wrapped-false')return {success:true,data:false};if(failure==='flag-false')return {success:false,message:'Private engine error'};
+    const row=expectedCreatorRows()[0];rows.set(row.table+'/'+row.id,{...row.value,modifierList:[{...row.value.modifierList[0],value:9}]});return {success:true,data:{ok:true}};
+   }
+  }});
+  const r=await f.run({path:'/api/me/creator-power'});assert.equal(r.status,0,failure);assert.equal(r.body.definitionsReady,undefined);assert.equal(r.body.messageKey,'Суперспособность пока недоступна.');assert(!r.body.error.includes('Private'));assert.equal(f.cliCalls.filter(c=>c.name==='data.patch').length,1);
+ }
+});
+
+test('Creator registration stops when the active job or persisted session changes',async()=>{
+ for(const change of ['new-job','new-session','expired-session']){
+  let changed=false;const f=await creatorFixture({cliOverride:(name,args,state)=>{
+   if(name==='data.list_rows'&&!changed){changed=true;if(change==='new-job')state.config.request=encode({...decode(state.config.request),id:'new-generation'});else state.config.session=encode({...session,...(change==='new-session'?{token:'other-account-token'}:{expiresAt:1})});}
+  }});
+  const r=await f.run({path:'/api/me/creator-power'});assert.equal(r.status,0,change);assert.equal(f.cliCalls.filter(c=>c.name==='data.patch').length,0);
+ }
+ let changed=false;const partial=await creatorFixture({cliOverride:(name,args,state)=>{if(name==='data.table_get'&&!changed){changed=true;state.config.session=encode({});}}});
+ assert.equal((await partial.run({path:'/api/me/creator-power'})).status,0);assert.equal(partial.cliCalls.filter(c=>c.name==='data.patch').length,1,'Cancellation does not insert remaining rows or report definitions ready');
+});
+
+test('a stalled Creator SDK call times out, releases the app and cannot resume registration when it resolves late',async()=>{
+ for(const stage of ['session','request','data.list_rows','data.patch','data.table_get']){
+  let late,hung=false;
+  const f=await creatorFixture({
+   cfgLoadHandler:(args,state)=>{if(!hung&&args.key===stage&&state.calls.length){hung=true;return new Promise(resolve=>{late=()=>resolve({success:true,data:{value:state.config[args.key]}});});}},
+   cliOverride:name=>{if(!hung&&name===stage){hung=true;return new Promise(resolve=>{late=()=>resolve(undefined);});}}
+  });
+  const pending=f.start({method:'GET',path:'/api/me/creator-power',language:'en'});await new Promise(setImmediate);
+  assert.equal(typeof late,'function',stage);assert.equal(f.timers.size,1,stage);assert([...f.timerDelays.values()].every(delay=>delay>0&&delay<=4000),stage);
+  for(const timeout of [...f.timers.values()])timeout();await pending;
+  const failed=decode(f.config.response);assert.equal(failed.status,0,stage);assert.equal(failed.body.messageKey,'Суперспособность пока недоступна.');assert.equal(failed.body.definitionsReady,undefined);assert.equal(f.timers.size,0);
+  const next=await f.run({path:'/api/me'});assert.equal(next.status,200,'Regular API requests work before the native promise resolves');
+  const response=f.config.response,calls=f.cliCalls.length;late();await new Promise(setImmediate);
+  assert.equal(f.cliCalls.length,calls,'Late completion cannot schedule more CLI calls');assert.equal(f.config.response,response,'Late completion cannot overwrite the next response');assert(f.rows.size<=1,'Only an already submitted fixed Insert may finish late');
+ }
+});
+
+test('Creator preparation has a ten-second total budget even when each native call returns',async()=>{
+ let now=Date.now(),lists=0,shortenedDelay;
+ class Clock extends Date{static now(){return now;}}
+ const f=await creatorFixture({clock:Clock,cliOverride:name=>{if(name==='data.list_rows'){lists++;if(lists===3)shortenedDelay=[...f.timerDelays.values()][0];now+=3400;}}});
+ const result=await f.run({path:'/api/me/creator-power'});assert.equal(result.status,0);assert.equal(lists,3);assert.equal(shortenedDelay,3200);assert.equal(f.cliCalls.filter(c=>c.name==='data.patch').length,0);assert.equal(f.timers.size,0);
+ assert.equal((await f.run({path:'/api/me'})).status,200);
 });

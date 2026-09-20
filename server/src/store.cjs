@@ -1,11 +1,13 @@
 'use strict';
 const {DatabaseSync}=require('node:sqlite');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const {migratePublicIds,reservePublicId}=require('./public-ids.cjs');
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
 const random=()=>crypto.randomBytes(32).toString('base64url');
 function openStore(filename){
  if(filename!==':memory:')fs.mkdirSync(path.dirname(filename),{recursive:true});
- const db=new DatabaseSync(filename);db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
+ const db=new DatabaseSync(filename);try{db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
+ const previousSchema=db.prepare('PRAGMA user_version').get().user_version;
  db.exec(`
  CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY, provider TEXT NOT NULL, subject TEXT NOT NULL, username TEXT NOT NULL COLLATE NOCASE UNIQUE, display_name TEXT NOT NULL, bio TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, banned INTEGER NOT NULL DEFAULT 0, UNIQUE(provider,subject));
  CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
@@ -71,15 +73,21 @@ function openStore(filename){
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_mention_post ON notifications(profile_id,post_id) WHERE kind='mention' AND comment_id IS NULL;
  CREATE UNIQUE INDEX IF NOT EXISTS notifications_mention_comment ON notifications(profile_id,comment_id) WHERE kind='mention' AND comment_id IS NOT NULL;
  CREATE INDEX IF NOT EXISTS notifications_inbox ON notifications(profile_id,id DESC);
- PRAGMA user_version=10;`);
+ CREATE TABLE IF NOT EXISTS public_id_aliases(username TEXT PRIMARY KEY,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE);
+ CREATE INDEX IF NOT EXISTS public_id_aliases_profile ON public_id_aliases(profile_id);
+ CREATE TABLE IF NOT EXISTS creator_grants(profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,creator INTEGER NOT NULL CHECK(creator IN (0,1)),revision INTEGER NOT NULL CHECK(revision>0),updated_at INTEGER NOT NULL);`);
+ if(previousSchema<11)migratePublicIds(db);
+ db.exec('PRAGMA user_version='+Math.max(previousSchema,11));
  });
  return db;
+ }catch(error){db.close();throw error}
 }
 function transaction(db,fn){db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}}
 function identity(db,provider,subject){
  const old=db.prepare('SELECT * FROM profiles WHERE provider=? AND subject=?').get(provider,subject);if(old)return old;
  const id=crypto.randomUUID(),username='player_'+id.replaceAll('-','').slice(0,12);
- db.prepare('INSERT INTO profiles(id,provider,subject,username,display_name,created_at) VALUES(?,?,?,?,?,?)').run(id,provider,subject,username,'Новый игрок',Date.now());
+ const create=()=>{db.prepare('INSERT INTO profiles(id,provider,subject,username,display_name,created_at) VALUES(?,?,?,?,?,?)').run(id,provider,subject,username,'Новый игрок',Date.now());reservePublicId(db,username,id)};
+ if(db.isTransaction)create();else transaction(db,create);
  return db.prepare('SELECT * FROM profiles WHERE id=?').get(id);
 }
 function session(db,profileId){

@@ -1,0 +1,1 @@
+Zoigram 1.0 Creators: name-based lowercase IDs with underscores; old IDs still work. The owner grants Creator status with a gold badge and avatar ring. Creators can activate a non-stacking +10% Filming learning boost for 60 in-game minutes.

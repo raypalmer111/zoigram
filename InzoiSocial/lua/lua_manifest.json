@@ -10,6 +10,12 @@
         "script": "B1.PhoneIntegration"
       }
     ],
-    "B2": []
+    "B2": [
+      {
+        "type": "Component",
+        "key": "Modifier",
+        "script": "B2.CreatorPower"
+      }
+    ]
   }
 }

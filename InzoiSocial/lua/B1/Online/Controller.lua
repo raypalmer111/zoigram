@@ -1,6 +1,8 @@
 local L=require('B1.Localization')
 local Transport=require('B1.Online.Transport')
 local Photo=require('B1.Game.PhotoFlow')
+local CreatorPower=require('B1.Game.CreatorPower')
+local Diagnostics=require('B1.Core.Diagnostics')
 local MessageDrafts=require('B1.Data.MessageDrafts')
 local M={};M.__index=M
 require('B1.Online.Announcements').attach(M,Transport)
@@ -14,6 +16,7 @@ function M:draw()
  self.revision=self.revision+1;self.app.view:renderOnline(self)end
 function M:input(name)return self.app.view:getOnlineInput(name)end
 function M:sessionEnded(result)
+ self:invalidateCreatorPower()
  self:resetMedia();self.me=nil;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil
  self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.accounts={};self.searchResults={};self.history={}
  self.selectedProfile=nil;self.selectedPost=nil;self.selectedConversation=nil;self.editTarget=nil;self.deleteTarget=nil;self.profileId=nil;self.conversationId=nil
@@ -34,6 +37,9 @@ function M:request(method,path,body,success,upload,silent,quiet)
   end
   if not silent or self.error then self:draw()end
  end,upload)
+ -- Background polls have no visible progress UI; otherwise an unchanged
+ -- activity response leaves its Loading label behind without a full redraw.
+ if type(self.transport.pending)=='table'then self.transport.pending.silent=silent==true end
 end
 function M:open()
  L.refresh()
@@ -42,7 +48,7 @@ end
 function M:connect(value)
  local server=Transport.server(value)
  if not server then self.error='Укажите HTTPS-адрес сервера.';self:draw();return end
- self:resetMedia()
+ self:invalidateCreatorPower();self:resetMedia()
  if self.server~=server then self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.me=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0 end;self.history={};self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.server=server;self.mode='setup'
  self:request('GET','/api/info',nil,function(info)
   if info.authentication~='password'or info.origin~=self.server then self.error='По этому адресу нет совместимого сервера Zoigram.';return end
@@ -98,10 +104,102 @@ function M:profile(id,more)
    for _,p in ipairs(self.posts or{})do seen[p.id]=true end
    if not more then for _,p in ipairs(r.pinnedPosts or{})do if not seen[p.id]then self.posts[#self.posts+1]=p;seen[p.id]=true end end end
    for _,p in ipairs(r.posts or{})do if not seen[p.id]then self.posts[#self.posts+1]=p;seen[p.id]=true end end
-   self.cursor=r.nextCursor
+   self.cursor=r.nextCursor;self:refreshCreatorPower(true)
   end)
  end
  if more then posts()else self.posts={};self:request('GET','/api/profiles/'..id,nil,function(r)self.selectedProfile=r.profile;if self.me and id==self.me.id then self.me=r.profile end;posts()end)end
+end
+function M:invalidateCreatorPower()
+ local operation=self.creatorPowerOperation
+ -- Release only the HTTP request owned by this activation. Once gameplay has
+ -- started, a different pending upload/request must remain untouched.
+ if operation and operation.httpRequest and self.transport and self.transport.pending==operation.httpRequest then self.transport.pending=nil end
+ self.creatorPowerGeneration=(self.creatorPowerGeneration or 0)+1
+ self.creatorPowerOperation=nil;self.creatorPowerInspect=nil;self.creatorPowerBusy=false;self.creatorPowerState=nil;self.creatorPowerElapsed=5
+end
+function M:onPhoneClose()self:invalidateCreatorPower()end
+function M:creatorPowerVisible()
+ return not self.disposed and self.app.opened==true and self.me and self.me.creator==true and self.mode=='profile'and self.profileId==self.me.id
+end
+function M:creatorPowerAvailable()
+ return CreatorPower.enabled==true and self.info and self.info.features and self.info.features.creatorPower==true
+end
+function M:creatorPowerScope(ticket)
+ return not self.disposed and self.app.opened==true and self.me and self.me.creator==true and self.me.id==ticket.profileId and (self.me.accountRevision or 0)==ticket.accountRevision and self.server==ticket.server and (self.creatorPowerGeneration or 0)==ticket.generation
+end
+function M:creatorPowerTicket()
+ return {profileId=self.me.id,accountRevision=self.me.accountRevision or 0,server=self.server,generation=self.creatorPowerGeneration or 0,entityId=CreatorPower.selectedEntity(self.app.context)}
+end
+local function powerError(state)
+ local reason=state and state.reason
+ if reason=='no_character'then return 'Выберите зоя для активации суперспособности.'end
+ if reason=='character_changed'or reason=='operation_cancelled'then return 'Выбранный зой изменился. Повторите активацию.'end
+ if reason=='creator_required'then return 'Суперспособность доступна только креаторам.'end
+ if reason=='game_validation_required'then return 'Суперспособность пока недоступна.'end
+ if reason=='busy'then return 'Суперспособность уже активируется.'end
+ return 'Не удалось активировать суперспособность. Повторите попытку.'
+end
+local powerFailureReasons={busy=true,no_character=true,character_changed=true,operation_cancelled=true,creator_required=true,game_validation_required=true,game_api_unavailable=true,game_reply_timeout=true,game_session_ended=true,effect_definition_unavailable=true,effect_state_mismatch=true,effect_verification_failed=true,game_command_failed=true}
+local function logPowerFailure(state)
+ local reason=type(state)=='table'and state.reason
+ pcall(Diagnostics.emit,'Creator power activation failed',type(reason)=='string'and powerFailureReasons[reason]and reason or'unknown')
+end
+local function powerStateKey(state)
+ if not state then return 'checking'end
+ if not state.available then return 'unavailable:'..tostring(state.reason)end
+ return tostring(state.entityId)..':'..tostring(state.active)..':'..(state.active and tostring(math.max(0,math.ceil(tonumber(state.remainingGameMinutes)or 0)))or'')
+end
+function M:syncCreatorPowerButton()
+ local page=self.app and self.app.view and self.app.view.page
+ if page and page.updateCreatorPowerButton then page:updateCreatorPowerButton(self)end
+end
+function M:refreshCreatorPower(force)
+ if not self:creatorPowerVisible()or not self:creatorPowerAvailable()or self.creatorPowerBusy or self.creatorPowerInspect or self.transport.pending or self.busy then return end
+ if not force and(self.creatorPowerElapsed or 0)<5 then return end;self.creatorPowerElapsed=0
+  local ticket=self:creatorPowerTicket();self.creatorPowerInspect=ticket;self:syncCreatorPowerButton()
+ if not ticket.entityId then
+  self.creatorPowerInspect=nil;local state={available=false,reason='no_character'};local changed=powerStateKey(state)~=powerStateKey(self.creatorPowerState);self.creatorPowerState=state;if changed then self:draw()end;return
+ end
+ local function done(ok,state)
+  if self.creatorPowerInspect~=ticket then return end;self.creatorPowerInspect=nil
+  if not self:creatorPowerScope(ticket)or CreatorPower.selectedEntity(self.app.context)~=ticket.entityId then self.creatorPowerState=nil;return end
+  state=ok and state or{available=false,reason=state and state.reason};state.entityId=ticket.entityId
+  local changed=powerStateKey(state)~=powerStateKey(self.creatorPowerState);self.creatorPowerState=state
+   if self:creatorPowerVisible()then if changed then self:draw()else self:syncCreatorPowerButton()end end
+ end
+ local ok=pcall(CreatorPower.inspect,self.app.context,done);if not ok then done(false,{reason='game_api_unavailable'})end
+end
+function M:activateCreatorPower()
+ if not self:creatorPowerVisible()or self.creatorPowerBusy or self.creatorPowerInspect or self.transport.pending then return end
+ if not self:creatorPowerAvailable()then self.notice='Суперспособность пока недоступна.';self:draw();return end
+ local ticket=self:creatorPowerTicket();if not ticket.entityId then self.error='Выберите зоя для активации суперспособности.';self:draw();return end
+ if self.creatorPowerState and self.creatorPowerState.entityId==ticket.entityId and self.creatorPowerState.active then self.notice='Суперспособность уже активна.';self:draw();return end
+ self.creatorPowerOperation=ticket;self.creatorPowerBusy=true;self.error=nil;self.notice=nil;self:draw()
+ local function valid()return self.creatorPowerOperation==ticket and self:creatorPowerScope(ticket)and self:creatorPowerAvailable()and CreatorPower.selectedEntity(self.app.context)==ticket.entityId end
+ local function done(ok,state)
+  if self.creatorPowerOperation~=ticket then return end;self.creatorPowerOperation=nil;self.creatorPowerBusy=false
+  if not ok then logPowerFailure(state)end
+  if not self:creatorPowerScope(ticket)then return end
+  if CreatorPower.selectedEntity(self.app.context)~=ticket.entityId then self.creatorPowerState=nil;self.notice='Выбранный зой изменился. Повторите активацию.'
+  elseif ok and state and state.active then self.creatorPowerState=state;self.creatorPowerState.entityId=ticket.entityId;self.notice='Суперспособность активна: +10% к развитию навыка съёмки.'
+  else self.error=powerError(state);self.creatorPowerState=nil end
+  if self:creatorPowerVisible()then self:draw()end
+ end
+ self.transport:send(self.server,'GET','/api/me/creator-power',nil,function(status,grant)
+  if self.creatorPowerOperation~=ticket then return end
+  if type(grant)~='table'then grant={}end
+  if not valid()then return done(false,{reason='operation_cancelled'})end
+  if status==401 then self:sessionEnded(grant);self:draw();return end
+  if status<200 or status>=300 then
+   self.creatorPowerOperation=nil;self.creatorPowerBusy=false;self.error=grant.messageKey or grant.error or'Нет связи с сервером. Попробуйте ещё раз.';if self:creatorPowerVisible()then self:draw()end;return
+  end
+   if grant.profileId~=ticket.profileId or grant.profileId~=self.me.id or grant.ability~='filming_learning'or grant.multiplier~=1.1 or grant.durationGameMinutes~=60 or grant.definitionsReady~=true then
+   self.creatorPowerOperation=nil;self.creatorPowerBusy=false;self.error='Сервер вернул неверное разрешение суперспособности.';self:draw();return
+  end
+   local fixed={ability='filming_learning',profileId=ticket.profileId,multiplier=1.1,durationGameMinutes=60,definitionsReady=true}
+  local ok=pcall(CreatorPower.activate,self.app.context,fixed,done,valid);if not ok then done(false,{reason='game_api_unavailable'})end
+ end)
+ if self.creatorPowerOperation==ticket then ticket.httpRequest=self.transport.pending end
 end
 function M:discussion(post,more,focus)
  self.mode='comments';self.selectedPost=post;local path='/api/posts/'..post.id..'/comments'
@@ -244,7 +342,8 @@ function M:act(action,value)
   end
  end)
  elseif action=='location'then self.notice='Coming soon';self:draw()
- elseif action=='creatorInfo'then self.notice='Создатель Zoigram';self:draw()
+ elseif action=='creatorInfo'then self.notice='Креатор Zoigram';self:draw()
+ elseif action=='creatorPower'then self:activateCreatorPower()
  elseif action=='pinPost'then self:pinPost(value)
  elseif action=='search'then self.history={};self.tab='search';self.mode='search';self:draw()
  elseif action=='runSearch'then self:search(false)
@@ -306,7 +405,7 @@ function M:act(action,value)
  elseif action=='removeAvatar'then self:request('DELETE','/api/me/avatar',nil,function()self.pendingAvatar=nil;self:request('GET','/api/me',nil,function(r)self.me=r.profile;self.notice='Аватар удалён.'end)end)
  elseif action=='saveProfile'then self:request('PATCH','/api/me',{displayName=self:input('name'),bio=self:input('bio')},function(r)self.me=r.profile;table.remove(self.history);self:profile(r.profile.id)end)
  elseif action=='settings'then if self.mode~='setup'then self:push();self.mode='setup';self:draw()end
- elseif action=='logout'then self:request('DELETE','/api/session',nil,function()self:resetMedia();local store=self:messageDrafts();if store then store:clear()end;self.messageDraftStore=nil;self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
+ elseif action=='logout'then self:invalidateCreatorPower();self:request('DELETE','/api/session',nil,function()self:resetMedia();local store=self:messageDrafts();if store then store:clear()end;self.messageDraftStore=nil;self.me=nil;self.searchQuery=nil;self.searchResults={};self.searchCursor=nil;self.searchPerformed=false;self.pendingLogin=nil;self.pendingAvatar=nil;self.pendingAccount=nil;self.posts={};self.comments={};self.notifications={};self.conversations={};self.messages={};self.unreadNotifications=0;self.unreadMessages=0;self.history={};self.mode='login'end)
  elseif action=='deletePost'then
   if not self.me or not value or value.author.id~=self.me.id then self.error='Можно удалить только свою публикацию.';self:draw();return end
   self:push();self.deleteTarget=value;self.mode='deletePost';self:draw()
@@ -343,9 +442,9 @@ end
 function M:tick(dt)
  self.languageElapsed=(self.languageElapsed or 0)+(dt or 0);if self.languageElapsed>=2 then self.languageElapsed=0;if L.refresh()then self:saveDraft();self:draw()end end
  self.draftElapsed=(self.draftElapsed or 0)+(dt or 0);if self.draftElapsed>=2 then self.draftElapsed=0;self:saveDraft()end
- self.transport:tick(dt);if self.transport.pending and self.transport.pending.progress and self.app.view.page and self.app.view.page.setProgress then self.app.view.page:setProgress(self.transport.pending.progress)end;self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
+ self.transport:tick(dt);if self.transport.pending and not self.transport.pending.silent and self.transport.pending.progress and self.app.view.page and self.app.view.page.setProgress then self.app.view.page:setProgress(self.transport.pending.progress)end;self.elapsed=self.elapsed+(dt or 0);self.activityElapsed=self.activityElapsed+(dt or 0)
  if self.pendingAccount and self.me and self.elapsed>=3 and not self.transport.pending then
-  self.elapsed=0;if os.time()*1000>self.pendingAccount.expiresAt then self.pendingAccount=nil else self:request('GET','/api/me',nil,function(r)self.me=r.profile;if (r.profile.accountRevision or 0)~=self.accountBefore then self.pendingAccount=nil;self.notice='Вход настроен. Сохраните резервный код в браузере.';self:draw()end end,nil,true,true)end
+  self.elapsed=0;if os.time()*1000>self.pendingAccount.expiresAt then self.pendingAccount=nil else self:request('GET','/api/me',nil,function(r)self.me=r.profile;if (r.profile.accountRevision or 0)~=self.accountBefore then self:invalidateCreatorPower();self.pendingAccount=nil;self.notice='Вход настроен. Сохраните резервный код в браузере.';self:draw()end end,nil,true,true)end
  end
  if self.pendingAvatar and self.me then
   self.avatarElapsed=(self.avatarElapsed or 0)+(dt or 0)
@@ -364,11 +463,12 @@ function M:tick(dt)
  end
  if self.pendingLogin and self.elapsed>=2 and not self.transport.pending then
   self.elapsed=0;if os.time()*1000>self.pendingLogin.expiresAt then self.pendingLogin=nil;self.error='Код входа истёк. Начните заново.';self:draw();return end
-  self:request('POST','/api/auth/poll',{deviceToken=self.pendingLogin.deviceToken},function(r)if r.status=='complete'then self.pendingLogin=nil;self.me=r.profile;self:feed('all')end end,nil,true)
+  self:request('POST','/api/auth/poll',{deviceToken=self.pendingLogin.deviceToken},function(r)if r.status=='complete'then self:invalidateCreatorPower();self.pendingLogin=nil;self.me=r.profile;self:feed('all')end end,nil,true)
  end
  if self.me and not self.pendingLogin and self.activityElapsed>=20 and not self.transport.pending then self.activityElapsed=0;self:activity()end
  self:refreshMediaTick()
+ self.creatorPowerElapsed=(self.creatorPowerElapsed or 0)+(dt or 0);self:refreshCreatorPower(false)
 end
-function M:dispose()self:saveDraft();self:resetMedia();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
+function M:dispose()self.disposed=true;self:invalidateCreatorPower();self:saveDraft();self:resetMedia();self.pendingAvatar=nil;self.pendingAccount=nil;self.transport:dispose()end
 require('B1.Online.Publishing').attach(M,Transport,Photo)
 return M

@@ -1,20 +1,71 @@
 /* Cohtml transport only. The app itself uses native UMG inside the Zoi phone. */
 (function(){
  'use strict';
- var MOD='__MOD_ID__',busy=false,lastId='',access=null,ready=false;
+ var MOD='__MOD_ID__',busy=false,lastId='',access=null,accessGeneration=0,ready=false;
  function hex(value){var bytes=unescape(encodeURIComponent(JSON.stringify(value))),out=[];for(var i=0;i<bytes.length;i++)out.push(('0'+bytes.charCodeAt(i).toString(16)).slice(-2));return out.join('');}
  function unhex(value){if(typeof value!=='string'||value.length>3000000||value.length%2||/[^0-9a-f]/i.test(value))throw Error('Invalid local message');var bytes=value.replace(/../g,function(h){return String.fromCharCode(parseInt(h,16));});return JSON.parse(decodeURIComponent(escape(bytes)));}
- async function cli(name,args){var result=await window.inzoi.cli.execute(name,args);if(result&&result.success===false)throw Error(result.message||'Game bridge failed');return result&&result.data!==undefined?result.data:result;}
+ async function cli(name,args){var result=await window.inzoi.cli.execute(name,args);if(result===false||result&&result.success===false)throw Error(result&&result.message||'Game bridge failed');return result&&result.data!==undefined?result.data:result;}
  async function read(key){try{var r=await cli('uimod.cfg_load',{mod_id:MOD,section:'online',key:key});return r&&r.value?unhex(r.value):null;}catch(e){return null;}}
  function write(key,value){return cli('uimod.cfg_save',{mod_id:MOD,section:'online',key:key,value:hex(value)});}
+ // These four definitions are built into the mod. No response field becomes a
+ // CLI command, table selector, JSON patch, character target or effect amount.
+ function creatorRows(){
+  var modifier='Zoigram_Creator_Filming_Learning',add='Zoigram_Creator_Filming_Add',remove='Zoigram_Creator_Filming_Remove',buff='Zoigram_Creator_Filming_Focus';
+  function script(id,command){return {iD:id,scripts:[{ifType:'If',conditions:[],executes:[{baseObject:'Self',command:command,s1:modifier,s2:'None',f1:0,f2:0,prob:1}]}]};}
+  function patchScript(id,command){return {ID:id,Scripts:[{IfType:'If',Conditions:[],Executes:[{BaseObject:'Self',Command:command,S1:modifier,S2:'None',F1:0,F2:0,Prob:1}]}]};}
+  return [
+   {table:'Modifier',id:modifier,value:{iD:modifier,modifierList:[{modifierType:'SkillExp',modifierKey:'Filming',modifierCalcType:'Multiply',value:1.1}]},patchValue:{ID:modifier,ModifierList:[{ModifierType:'SkillExp',ModifierKey:'Filming',ModifierCalcType:'Multiply',Value:1.1}]}},
+   {table:'Script',id:add,value:script(add,'AddModifier'),patchValue:patchScript(add,'AddModifier')},
+   {table:'Script',id:remove,value:script(remove,'RemoveModifier'),patchValue:patchScript(remove,'RemoveModifier')},
+   {table:'Buff',id:buff,value:{iD:buff,buffBasicInfo:{isEssential:false,duration:60,expireTime:{afterDay:-1,targetHour:-1,targetMinute:-1},tickInterval:0,scriptInterval:0,emotionId:'None',emotionValue:0,emotionReasonPriority:'Invalid',tags:[],tagIconId:'Skill_Icon_Filming'},buffDisplayInfo:{displayTextId:'',reasonTextId:'',iconId:'None',emotionColorId1:'None',emotionColorId2:'None',hiddenFromUI:true,alarmIconMaterialId:'None',isHighlight:false,emotionReasonTitleTextId:'',emotionReasonDescTextId:''},addScriptIdList:[add],cancelScriptIdList:[remove],finishScriptIdList:[remove],tickScriptIdList:[],intervalScriptIdList:[]},patchValue:{ID:buff,BuffBasicInfo:{IsEssential:false,duration:60,ExpireTime:{AfterDay:-1,TargetHour:-1,TargetMinute:-1},TickInterval:0,ScriptInterval:0,EmotionId:'None',EmotionValue:0,EmotionReasonPriority:'Invalid',Tags:[],TagIconId:'Skill_Icon_Filming'},BuffDisplayInfo:{DisplayTextId:'',ReasonTextId:'',IconId:'None',EmotionColorId1:'None',EmotionColorId2:'None',HiddenFromUI:true,AlarmIconMaterialId:'None',IsHighlight:false,EmotionReasonTitleTextId:'',EmotionReasonDescTextId:''},AddScriptIdList:[add],CancelScriptIdList:[remove],FinishScriptIdList:[remove],TickScriptIdList:[],IntervalScriptIdList:[]}}
+  ];
+ }
+ function creatorMatch(actual,expected){
+  if(typeof expected==='number')return typeof actual==='number'&&isFinite(actual)&&Math.abs(actual-expected)<0.00001;
+  if(expected===null||typeof expected!=='object')return actual===expected;
+  if(!actual||typeof actual!=='object'||Array.isArray(actual)!==Array.isArray(expected))return false;
+  if(Array.isArray(expected)&&actual.length!==expected.length)return false;
+  return Object.keys(expected).every(function(key){return Object.prototype.hasOwnProperty.call(actual,key)&&creatorMatch(actual[key],expected[key]);});
+ }
+ function creatorGrant(grant){return grant&&typeof grant==='object'&&!Array.isArray(grant)&&grant.ability==='filming_learning'&&grant.multiplier===1.1&&grant.durationGameMinutes===60&&typeof grant.profileId==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(grant.profileId);}
+ async function registerCreator(job,base,token,generation,grant){
+  if(!creatorGrant(grant))throw Error('Суперспособность пока недоступна.');
+  var deadline=Date.now()+10000,cancelled=false;
+  function timely(){if(cancelled||Date.now()>=deadline)throw Error('Суперспособность пока недоступна.');}
+  async function bounded(work){
+   timely();var timer;
+   try{var value=await Promise.race([Promise.resolve().then(function(){timely();return work();}),new Promise(function(resolve,reject){timer=setTimeout(function(){cancelled=true;reject(Error('Суперспособность пока недоступна.'));},Math.min(4000,deadline-Date.now()));})]);timely();return value;}
+   finally{clearTimeout(timer);}
+  }
+  async function current(){
+   timely();
+   if(generation!==accessGeneration||!access||access.server!==base||access.token!==token||access.expiresAt<=Date.now())throw Error('Суперспособность пока недоступна.');
+   var stored=await bounded(function(){return read('session');}),latest=await bounded(function(){return read('request');});
+   if(!stored||stored.server!==base||stored.token!==token||stored.expiresAt<=Date.now()||!latest||latest.id!==job.id||latest.path!==job.path||latest.method!==job.method||latest.server!==job.server||generation!==accessGeneration)throw Error('Суперспособность пока недоступна.');
+  }
+  async function data(name,args){await current();var value=await bounded(function(){return cli(name,args);});await current();if(value===false||value&&value.success===false||value&&value.ok===false)throw Error('Суперспособность пока недоступна.');if(typeof value==='string'){try{value=JSON.parse(value);}catch(e){throw Error('Суперспособность пока недоступна.');}}return value;}
+  var rows=creatorRows(),tables={},missing=[];
+  // Verify every existing row before making any insertion. An unrelated row
+  // with a matching name must never be overwritten, even if later rows match.
+  for(var i=0;i<rows.length;i++){
+   var row=rows[i];if(!tables[row.table]){var names=await data('data.list_rows',{Alias:row.table});if(!Array.isArray(names)||names.some(function(name){return typeof name!=='string';}))throw Error('Суперспособность пока недоступна.');tables[row.table]=new Set(names);}
+   if(tables[row.table].has(row.id)){if(!creatorMatch(await data('data.table_get',{Alias:row.table,Row:row.id}),row.value))throw Error('Суперспособность пока недоступна.');}
+   else missing.push(row);
+  }
+  for(var j=0;j<missing.length;j++){
+   var next=missing[j];await current();var patched=await bounded(function(){return cli('data.patch',{Method:'Insert',Query:next.table+'[Id='+next.id+']',Value:JSON.stringify(next.patchValue)});});await current();
+   if(patched===false||patched&&patched.success===false||patched&&patched.ok===false||!creatorMatch(await data('data.table_get',{Alias:next.table,Row:next.id}),next.value))throw Error('Суперспособность пока недоступна.');
+  }
+  await current();return {ability:'filming_learning',profileId:grant.profileId,multiplier:1.1,durationGameMinutes:60,definitionsReady:true};
+ }
  function server(value){if(typeof value!=='string'||value.length>240)throw Error('Укажите адрес сервера.');value=value.replace(/\/+$/,'');if(!/^https:\/\/[a-z0-9.-]+(?::\d{1,5})?$/i.test(value)&&!/^http:\/\/(127\.0\.0\.1|localhost)(?::\d{1,5})?$/i.test(value))throw Error('Нужен HTTPS-адрес сервера без пути.');return value;}
- function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|media\/refresh|uploads\/[a-zA-Z0-9_-]{8,100}|me(?:\/(avatar|avatar-upload|account-access))?|session|saved(?:\?before=\d+)?|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\?filter=(?:all|unread)(?:&before=\d+)?|\?before=\d+)?|conversations\/[a-f0-9-]{36}\/(messages|read)(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/request\/[a-zA-Z0-9_-]{8,100}|\/\d+(?:\/(like|comments|save|pin))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/search(?:\?q=[^#\\]*)?|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
+ function allowed(path){return typeof path==='string'&&path.length<1500&&/^\/api\/(info|media\/refresh|uploads\/[a-zA-Z0-9_-]{8,100}|me(?:\/(avatar|avatar-upload|account-access|creator-power))?|session|saved(?:\?before=\d+)?|activity|notifications(?:\/read)?(?:\?before=\d+)?|conversations(?:\?filter=(?:all|unread)(?:&before=\d+)?|\?before=\d+)?|conversations\/[a-f0-9-]{36}\/(messages|read)(?:\?before=\d+)?|feed(?:\?[^#\\]*)?|auth\/(device|poll)|blocks|reports|posts(?:\/request\/[a-zA-Z0-9_-]{8,100}|\/\d+(?:\/(like|comments|save|pin))?)?(?:\?[^#\\]*)?|comments\/\d+|profiles\/search(?:\?q=[^#\\]*)?|profiles\/[a-f0-9-]{36}(?:\/(follow|block|following))?(?:\?[^#\\]*)?)$/.test(path);}
    function request(method,url,body,token,raw,language,onProgress){return new Promise(function(resolve,reject){
    var x=new XMLHttpRequest(),done=false,timeout=raw?25000:(onProgress?120000:25000);
    function finish(error,value){if(done)return;done=true;clearTimeout(timer);if(error)reject(error);else resolve(value);}
    var timer=setTimeout(function(){finish(Error(raw?'Не удалось прочитать снимок.':'Сервер не ответил вовремя. Попробуйте снова.'));try{x.abort();}catch(e){}},timeout);
    x.open(method,url,true);x.timeout=timeout;if(raw)x.responseType='arraybuffer';else if(body!==undefined)x.setRequestHeader('Content-Type','application/json');
-   if(!raw)x.setRequestHeader('X-Zoigram-Version','0.9.0');
+   if(!raw)x.setRequestHeader('X-Zoigram-Version','1.0.0');
    if(token)x.setRequestHeader('Authorization','Bearer '+token);if(!raw){x.setRequestHeader('Accept-Language',language||'en');x.setRequestHeader('X-Zoigram-Features','comment-notifications,mention-notifications,pinned-posts');}
    if(onProgress&&x.upload)x.upload.onprogress=function(e){if(!done&&e.lengthComputable&&e.total>0)onProgress(Math.min(100,Math.floor(100*e.loaded/e.total)));};
    x.onload=function(){
@@ -36,7 +87,7 @@ function base64(buffer){var bytes=new Uint8Array(buffer),alphabet='ABCDEFGHIJKLM
   var authenticated=job.path!=='/api/info'&&job.path.indexOf('/api/auth/')!==0;
   var token=access&&access.server===base&&access.expiresAt>Date.now()?access.token:null;
   if(authenticated&&!token)return {status:401,body:{error:'Войдите в Zoigram.'}};
-  var body=job.body;
+  var body=job.body,generation=accessGeneration;
      var submitted=false,result;
    try{
     if(job.upload){
@@ -58,14 +109,15 @@ function base64(buffer){var bytes=new Uint8Array(buffer),alphabet='ABCDEFGHIJKLM
     if(!result){await progress(job.upload?'Отправка фотографии…':'Загрузка…');submitted=true;
     result=await request(job.method,base+job.path,body,token,false,job.language,job.upload?function(percent){var time=Date.now();if(percent===100||time-lastProgress>=300){lastProgress=time;progress(percent===100?'Обработка фотографий…':'Отправка фотографии…',undefined,percent).catch(function(){});}}:undefined);}
     await progressChain.catch(function(){});
+    if(job.method==='GET'&&job.path==='/api/me/creator-power'&&result.status===200){try{result.body=await registerCreator(job,base,token,generation,result.body);}catch(powerError){return {status:0,body:{error:'Суперспособность пока недоступна.',messageKey:'Суперспособность пока недоступна.'}};}}
     }catch(e){await progressChain.catch(function(){});
-    if(job.upload&&body&&body.resumable&&token){try{var diagnostic=new XMLHttpRequest();diagnostic.open('POST',base+'/api/diagnostics',true);diagnostic.timeout=3000;diagnostic.setRequestHeader('Content-Type','application/json');diagnostic.setRequestHeader('Authorization','Bearer '+token);diagnostic.setRequestHeader('X-Zoigram-Version','0.9.0');diagnostic.send(JSON.stringify({code:e.photoCode||'network',imageBytes:e.imageBytes}));}catch(ignore){}}
+    if(job.upload&&body&&body.resumable&&token){try{var diagnostic=new XMLHttpRequest();diagnostic.open('POST',base+'/api/diagnostics',true);diagnostic.timeout=3000;diagnostic.setRequestHeader('Content-Type','application/json');diagnostic.setRequestHeader('Authorization','Bearer '+token);diagnostic.setRequestHeader('X-Zoigram-Version','1.0.0');diagnostic.send(JSON.stringify({code:e.photoCode||'network',imageBytes:e.imageBytes}));}catch(ignore){}}
     return {status:0,body:{error:String(e.message||e),submitted:e.local?false:submitted}};
    }
 if(job.path==='/api/auth/poll'&&result.status===200&&result.body.status==='complete'){
-   access={server:base,token:result.body.token,expiresAt:result.body.expiresAt};await write('session',access);delete result.body.token;
+   accessGeneration++;access={server:base,token:result.body.token,expiresAt:result.body.expiresAt};await write('session',access);delete result.body.token;
   }
-  if((job.path==='/api/session'&&result.status===200)||(result.status===401&&access&&access.server===base)){access=null;await write('session',{});}
+  if((job.path==='/api/session'&&result.status===200)||(result.status===401&&access&&access.server===base)){accessGeneration++;access=null;await write('session',{});}
   return result;
  }
  async function tick(){if(busy||!ready)return;busy=true;var job;try{
@@ -76,5 +128,5 @@ if(job.path==='/api/auth/poll'&&result.status===200&&result.body.status==='compl
   if(result.body&&result.body.error){var key=result.body.messageKey||result.body.error;if(messages[key]){result.body.messageKey=key;result.body.error=messages[key];}}
   await write('response',{id:job.id,status:result.status,body:result.body,finishedAt:Math.floor(Date.now()/1000)});
  }catch(e){if(job&&job.id)lastId='';}finally{busy=false;}}
- engine.on('Ready',async function(){access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'0.9.0'});setInterval(tick,250);tick();});
+ engine.on('Ready',async function(){accessGeneration++;access=await read('session');var previous=await read('response');lastId=previous&&previous.id||'';ready=true;await write('worker',{ready:true,startedAt:Math.floor(Date.now()/1000),version:'1.0.0'});setInterval(tick,250);tick();});
 })();

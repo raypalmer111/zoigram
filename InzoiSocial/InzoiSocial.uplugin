@@ -1,9 +1,9 @@
 {
   "FileVersion": 3,
-  "Version": 21,
-  "VersionName": "0.9.0",
+  "Version": 22,
+  "VersionName": "1.0.0",
   "FriendlyName": "Zoigram",
-  "Description": "Zoigram: real player photos, mentions, notifications, pinned posts and private messages.",
+  "Description": "Zoigram 1.0 Creators: player profiles, automatic public IDs and a Creator skill-learning superpower.",
   "Category": "UGC",
   "CreatedBy": "Zoigram",
   "CreatedByURL": "",

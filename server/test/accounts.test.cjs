@@ -93,8 +93,10 @@ test('passwords reject short values; login rejects path separators and repeated 
  assert.equal((await f.submit(login,'login',{login:'missing',password:PASS})).status,429);
 });
 test('owner password login grants a separate Secure cookie and denies normal accounts',async t=>{
- const ownerId=crypto.randomUUID(),f=await fixture(t,{ownerProfileId:ownerId}),owner=identity(f.app.db,'local','owner-seed');
- f.app.db.prepare('UPDATE profiles SET id=? WHERE id=?').run(ownerId,owner.id);
+ const ownerId=crypto.randomUUID(),f=await fixture(t,{ownerProfileId:ownerId});
+ // Establish the configured UUID directly; real profile identities never change.
+ f.app.db.prepare('INSERT INTO profiles(id,provider,subject,username,display_name,created_at) VALUES(?,?,?,?,?,?)').run(ownerId,'local','owner-seed','owner_seed','Owner',Date.now());
+ require('../src/public-ids.cjs').reservePublicId(f.app.db,'owner_seed',ownerId);
  const encoded=await Passwords.encode(PASS);f.app.db.prepare('INSERT INTO account_credentials VALUES(?,?,?,?,?,?)').run(ownerId,'owner_login',encoded,hash('test-recovery'),Date.now(),Date.now());
  const other=await f.register('normal_user');
  const login=(login,password=PASS,headers={})=>f.json('/admin/auth/password',{login,password},{Origin:origin,...headers});

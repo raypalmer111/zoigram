@@ -1,4 +1,4 @@
--- The only account and feed are on the community server. The selected Zoi is used for the camera.
+-- The account and feed live on the community server. The selected Zoi owns local gameplay actions.
 local Photo=require('B1.Game.PhotoFlow')
 local Online=require('B1.Online.Controller')
 local M={};M.__index=M
@@ -22,7 +22,7 @@ function M:open()
  self.opened=true;self.elapsed=0;self:refresh();self.online:open()
 end
 function M:close()
- if self.online then self.online:saveDraft()end;self.opened=false
+ if self.online then self.online:saveDraft();self.online:onPhoneClose()end;self.opened=false
 end
 function M:back()if not self.online:back()then self.onExit()end end
 function M:update(dt)

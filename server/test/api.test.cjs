@@ -46,19 +46,19 @@ test('blocks remove relationships and access, reports do not delete content',asy
  assert.equal((await call('GET','/api/me',undefined,b)).data.profile.following,0);assert.equal((await call('GET','/api/blocks',undefined,b)).data.profiles[0].id,a.id);
  await call('DELETE','/api/profiles/'+a.id+'/block',undefined,b);assert.equal((await call('GET','/api/feed',undefined,b)).data.posts.length,1);
 });
-test('public IDs are assigned once and only name and bio are editable by members',async t=>{
+test('public IDs follow display names while identity and direct ID edits stay protected',async t=>{
  const {call,users,app}=await fixture(t);const a=users[0],b=users[1];assert.equal(identity(app.db,'test','Alice').id,a.id);assert.match(a.username,/^player_[a-f0-9]{12}$/);
  const before=(await call('GET','/api/me')).data.profile;
  for(const fields of [{username:'changed'},{username:null},{id:b.id},{profileId:b.id},{provider:'steam'},{subject:'different'},{username:'admin',isAdmin:true,role:'moderator'}]){
-  const result=await call('PATCH','/api/me',{displayName:'Must not change',bio:'Must not change',...fields});assert.equal(result.status,403);assert.match(result.data.error,/модератор/);assert.deepEqual((await call('GET','/api/me')).data.profile,before);
+  const result=await call('PATCH','/api/me',{displayName:'Must not change',bio:'Must not change',...fields});assert.equal(result.status,403);assert.match(result.data.error,/автоматически/);assert.deepEqual((await call('GET','/api/me')).data.profile,before);
  }
- const saved=await call('PATCH','/api/me',{displayName:'Алиса',bio:'Мои кадры'});assert.equal(saved.status,200);assert.equal(saved.data.profile.username,a.username);assert.equal(saved.data.profile.id,a.id);assert.equal(saved.data.profile.displayName,'Алиса');assert.equal(saved.data.profile.bio,'Мои кадры');
+ const saved=await call('PATCH','/api/me',{displayName:'Алиса',bio:'Мои кадры'});assert.equal(saved.status,200);assert.equal(saved.data.profile.username,'алиса');assert.equal(saved.data.profile.id,a.id);assert.equal(saved.data.profile.displayName,'Алиса');assert.equal(saved.data.profile.bio,'Мои кадры');
  // An older client can submit the same ID, but cannot rename it.
- assert.equal((await call('PATCH','/api/me',{username:a.username,displayName:'Алиса',bio:'Новые кадры'})).status,200);
+ assert.equal((await call('PATCH','/api/me',{username:saved.data.profile.username,displayName:'Алиса',bio:'Новые кадры'})).status,200);
  assert.equal((await call('PATCH','/api/me',{username:a.username,displayName:'Боб'},b)).status,403);
  const {setPublicId}=require('../src/moderation.cjs');setPublicId(app.db,a.id,'approved_id','Owner approved');
  assert.equal((await call('GET','/api/me')).data.profile.username,'approved_id');assert.equal((await call('PATCH','/api/me',{username:a.username,displayName:'Stale client'})).status,403);
- assert.equal((await call('PATCH','/api/me',{displayName:'После модерации',bio:''})).status,200);assert.equal(identity(app.db,'test','Alice').id,a.id);
+ const renamed=await call('PATCH','/api/me',{displayName:'После модерации',bio:''});assert.equal(renamed.status,200);assert.equal(renamed.data.profile.username,'после_модерации');assert.equal(identity(app.db,'test','Alice').id,a.id);
  assert.equal((await call('PUT','/api/profiles/'+a.id+'/follow',{})).status,400);
  app.db.prepare('UPDATE profiles SET banned=1 WHERE id=?').run(a.id);assert.equal((await call('GET','/api/me')).status,401);assert.equal((await call('GET','/api/profiles/'+a.id,undefined,b)).status,404);
 });

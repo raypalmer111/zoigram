@@ -1,9 +1,9 @@
 {
   "ProjectName": "__MOD_ID__",
   "FriendlyName": "Zoigram",
-  "Description": "Zoigram: real player photos, mentions, notifications, pinned posts and private messages. Login and password; no Steam link.",
+  "Description": "Zoigram 1.0 Creators: player profiles, automatic public IDs and a Creator skill-learning superpower.",
   "Author": "Zoigram",
-  "Version": 21,
+  "Version": 22,
   "Url": "",
   "Dependencies": [],
   "Assets": [],

@@ -34,9 +34,9 @@ function sourcePackage(destination){
  empty(destination);
  const fixed=['package.json','InzoiSocial/mod_manifest.json','InzoiSocial/InzoiSocial.uplugin','InzoiSocial/obsolete-files.json','InzoiSocial/assets/instagram-icon.png',
   'tools/bundle-native.cjs','tools/package-nexus.cjs','tools/build-locales.cjs','tools/zip-directory.cjs','locales/messages.de.json','locales/messages.zh.json','tools/build-ui-glyphs.cjs','tools/Install-Native.ps1','locales/messages.json',
-   publication+'/INSTALL.txt',publication+'/REVIEW.md',publication+'/CHANGELOG.txt','docs/RELEASE_0.9.md','tools/test-lua-offline.cjs','tests/lua/messaging061.lua','tests/lua/albums070.lua','tests/lua/social090.lua',
+   publication+'/INSTALL.txt',publication+'/REVIEW.md',publication+'/CHANGELOG.txt','docs/RELEASE_1.0.md','tools/test-lua-offline.cjs','tests/lua/messaging061.lua','tests/lua/albums070.lua','tests/lua/social090.lua','tests/lua/identity0100.lua','tests/lua/creator100.lua','tests/lua/creator-controller100.lua',
   'tests/photos.test.cjs','tests/bundle-native.test.cjs','tests/localization.test.cjs','tests/online-bridge.test.cjs','tests/nexus-package.test.cjs','tests/zip-directory.test.cjs',
-  'docs/ACCOUNTS.md','docs/ADMIN.md','server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
+  'docs/ACCOUNTS.md','docs/ADMIN.md','docs/MODERATION.md','docs/LOCALIZATION.md','docs/ONLINE.md','server/package.json','server/pnpm-lock.yaml','server/Dockerfile','server/.dockerignore',
   'server/deploy/compose.yaml','server/deploy/Caddyfile','server/deploy/.env.example','server/deploy/preflight.cjs'];
  const dirs=['InzoiSocial/lua','server/src','server/admin','server/avatar','server/tools','server/test'];
  const list=[...fixed,...uiFiles.map(file=>'InzoiSocial/ui/OnlineBridge/'+file),...dirs.flatMap(dir=>walk(path.join(root,dir)).map(file=>path.relative(root,file).replaceAll('\\','/')))];

@@ -2014,5 +2014,131 @@
     "Your uploaded photos are saved. Continue uploading.",
     "Vos photos envoyées sont conservées. Reprenez l’envoi.",
     "업로드된 사진은 저장되었습니다. 업로드를 계속해 주세요."
+  ],
+  [
+    "Креатор Zoigram",
+    "Zoigram Creator",
+    "Créateur Zoigram",
+    "Zoigram 크리에이터"
+  ],
+  [
+    "ID формируется автоматически из имени.",
+    "Your ID is generated automatically from your name.",
+    "Votre identifiant est généré automatiquement à partir de votre nom.",
+    "ID는 이름에서 자동으로 생성됩니다."
+  ],
+  [
+    "ID меняется вместе с именем: строчные буквы и подчёркивания. При совпадении добавляется число.",
+    "Your ID follows your name, using lowercase letters and underscores. A number is added if the ID is taken.",
+    "Votre identifiant suit votre nom, en minuscules avec des traits de soulignement. Un numéro est ajouté s’il est déjà pris.",
+    "ID는 이름에 따라 소문자와 밑줄로 바뀝니다. 중복되는 ID에는 숫자가 추가됩니다."
+  ],
+  [
+    "Активировать суперспособность",
+    "Activate superpower",
+    "Activer le superpouvoir",
+    "초능력 활성화"
+  ],
+  [
+    "Суперспособность Creator",
+    "Creator superpower",
+    "Superpouvoir Creator",
+    "크리에이터 초능력"
+  ],
+  [
+    "Суперспособность пока недоступна.",
+    "The superpower is not available yet.",
+    "Le superpouvoir n’est pas encore disponible.",
+    "초능력은 아직 사용할 수 없습니다."
+  ],
+  [
+    "ID: 1–24 буквы, цифры или _.",
+    "ID: 1–24 letters, numbers or underscores.",
+    "Identifiant : 1 à 24 lettres, chiffres ou traits de soulignement.",
+    "ID: 문자, 숫자 또는 밑줄 1~24자."
+  ],
+  [
+    "Суперспособность доступна только креаторам.",
+    "This superpower is available to Creators only.",
+    "Ce superpouvoir est réservé aux Creators.",
+    "이 초능력은 크리에이터만 사용할 수 있습니다."
+  ],
+  [
+    "Выберите зоя для активации суперспособности.",
+    "Select a Zoi to activate the superpower.",
+    "Sélectionnez un Zoi pour activer le superpouvoir.",
+    "초능력을 활성화할 조이를 선택하세요."
+  ],
+  [
+    "Выбранный зой изменился. Повторите активацию.",
+    "The selected Zoi changed. Activate again.",
+    "Le Zoi sélectionné a changé. Relancez l’activation.",
+    "선택한 조이가 바뀌었습니다. 다시 활성화하세요."
+  ],
+  [
+    "Суперспособность уже активируется.",
+    "The superpower is already activating.",
+    "L’activation du superpouvoir est déjà en cours.",
+    "초능력을 활성화하고 있습니다."
+  ],
+  [
+    "Не удалось активировать суперспособность. Повторите попытку.",
+    "Could not activate the superpower. Try again.",
+    "Impossible d’activer le superpouvoir. Réessayez.",
+    "초능력을 활성화하지 못했습니다. 다시 시도하세요."
+  ],
+  [
+    "Суперспособность уже активна.",
+    "The superpower is already active.",
+    "Le superpouvoir est déjà actif.",
+    "초능력이 이미 활성화되어 있습니다."
+  ],
+  [
+    "Суперспособность активна: +10% к развитию навыка съёмки.",
+    "Superpower active: +10% to Media Production skill learning.",
+    "Superpouvoir actif : +10 % d’apprentissage de la compétence Production de médias.",
+    "초능력 활성화: 미디어 제작 기술 학습량 +10%."
+  ],
+  [
+    "Сервер вернул неверное разрешение суперспособности.",
+    "The server returned an invalid superpower authorization.",
+    "Le serveur a renvoyé une autorisation de superpouvoir invalide.",
+    "서버에서 잘못된 초능력 권한을 반환했습니다."
+  ],
+  [
+    "Активация…",
+    "Activating…",
+    "Activation…",
+    "활성화 중…"
+  ],
+  [
+    "Суперспособность активна",
+    "Superpower active",
+    "Superpouvoir actif",
+    "초능력 활성화됨"
+  ],
+  [
+    "+10% к развитию навыка съёмки на 60 игровых минут. Эффект не складывается.",
+    "+10% to Media Production skill learning for 60 game minutes. Does not stack.",
+    "+10 % d’apprentissage de la compétence Production de médias pendant 60 minutes de jeu. Non cumulable.",
+    "게임 시간 60분 동안 미디어 제작 기술 학습량 +10%. 효과는 중첩되지 않습니다."
+  ],
+  [
+    "Проверяем статус Creator и выбранного зоя…",
+    "Checking Creator status and selected Zoi…",
+    "Vérification du statut Creator et du Zoi sélectionné…",
+    "크리에이터 상태와 선택한 조이를 확인하는 중…"
+  ],
+  [
+    "Осталось {minutes} игровых мин.",
+    "{minutes} game min remaining.",
+    "{minutes} min de jeu restantes.",
+    "게임 시간 {minutes}분 남음."
+  ],
+  [
+    "Проверяем выбранного зоя…",
+    "Checking selected Zoi…",
+    "Vérification du Zoi sélectionné…",
+    "선택한 조이를 확인하는 중…"
   ]
 ]

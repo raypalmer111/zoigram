@@ -1,8 +1,18 @@
 local L=require('B1.Localization')
 local Kit=require('B1.UI.WidgetKit')
 local M={}
+function M.creatorPowerEnabled(model)
+ local state=model.creatorPowerState
+ return model.creatorPowerAvailable and model:creatorPowerAvailable()and not model.busy and not model.creatorPowerBusy
+  and not model.creatorPowerInspect and state and state.available==true and not state.active or false
+end
+function M.updateCreatorPowerButton(page,model)
+ local button=page.creatorPowerButton
+ if button and button:IsValid()then button:SetIsEnabled(M.creatorPowerEnabled(model))end
+end
 function M.create(kit,action)
- local page={inputs={},saved={},tasks={},cache={},cacheOrder={}};local P=kit.palette
+  local page={inputs={},saved={},tasks={},cache={},cacheOrder={}};local P=kit.palette
+ page.updateCreatorPowerButton=M.updateCreatorPowerButton
  page.root=kit:make(UE.UVerticalBox,'OnlineRoot')
  page.status=kit:text('',11,'OnlineStatus',P.muted,false,true,true);page.statusPanel=kit:panel('OnlineStatusPanel',page.status,10,P.surface);page.root:AddChild(page.statusPanel)
  page.scroll=kit:make(UE.UScrollBox,'OnlineScroll');Kit.fill(page.root:AddChildToVerticalBox(page.scroll))
@@ -21,7 +31,7 @@ function M.create(kit,action)
    if self.progressText~=message then self.progressText=message;self.status:SetText(message);self.statusPanel:SetVisibility(UE.ESlateVisibility.Visible)end
   end
   function page:render(model)
-  self.model=model;self.progressText=nil;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
+   self.model=model;self.creatorPowerButton=nil;self.progressText=nil;local status=model.error or(model.busy and L.t('Загрузка…'))or(model.mode=='create'and model.draft and model.draft.error)or model.notice or''
   self.status:SetText(L.t(status));self.status:SetColorAndOpacity(Kit.slate(model.error and P.accent or P.muted));self.statusPanel:SetVisibility(status~=''and UE.ESlateVisibility.Visible or UE.ESlateVisibility.Collapsed)
    local route=tostring(model.server)..':'..tostring(model.me and model.me.id or'')..':'..tostring(model.pendingLogin and model.pendingLogin.userCode or'')..':'..model.mode..':'..tostring(model.mode=='create'and model.draftAuthor or'')..':'..tostring(model.mode=='create'and model.draft and model.draft.city or'')..':'..tostring(model.mode=='profile'and model.profileId or'')..':'..tostring((model.mode=='comments'or model.mode=='post')and model.selectedPost and model.selectedPost.id or'')..':'..tostring(model.mode=='editPost'and model.editTarget and model.editTarget.id or'')..':'..tostring(model.mode=='messages'and model.conversationId or'')
   if self.route~=route then self.saved={};self.scroll:ScrollToStart()else for name,w in pairs(self.inputs)do if w:IsValid()then self.saved[name]=tostring(w:GetText())end end end
@@ -43,7 +53,7 @@ function M.create(kit,action)
     row:AddChild(k:box('Online'..name..'BadgeGap',4,1))
     local badge=k:glyph('creator','Online'..name..'Creator',size>=16 and 18 or 15,P.white)
     local info=k:button('Online'..name..'CreatorBadge',badge,function()action('creatorInfo')end,1)
-    pcall(function()info:SetToolTipText(L.t('Создатель Zoigram'))end)
+    pcall(function()info:SetToolTipText(L.t('Креатор Zoigram'))end)
     row:AddChildToHorizontalBox(info):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)
    elseif p.verified==true then
     row:AddChild(k:box('Online'..name..'BadgeGap',4,1))
@@ -55,7 +65,7 @@ function M.create(kit,action)
   end
   local function avatar(p,size,name)
    local outside=size;local ring=p.creator==true and 2 or 0;size=size-ring*2
-   local initial=((p.displayName or''):match('^[A-Za-z0-9]')or(p.username or'z'):sub(1,1)):upper()
+   local initial=Kit.avatarInitial(p)
    local fallback=k:roundedPanel('Online'..name,k:text(initial,math.floor(size*.39),'Online'..name..'Initial',P.accent,true),math.floor(size*.2),P.blush,size/2)
    local overlay=k:make(UE.UOverlay,'Online'..name..'Layers')
    local function add(w)local slot=overlay:AddChildToOverlay(w);slot:SetHorizontalAlignment(UE.EHorizontalAlignment.HAlign_Fill);slot:SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Fill)end
@@ -214,6 +224,14 @@ function M.create(kit,action)
     for _,stat in ipairs({{p.postCount,L.t('постов'),'Posts'},{p.followers,L.t('подписчиков'),'Followers'},{p.following,L.t('подписок'),'Following'}})do local col=k:make(UE.UVerticalBox,'OnlineStat'..stat[3]);col:AddChild(k:text(tostring(stat[1]),18,'OnlineStatValue'..stat[3],P.ink,true));col:AddChild(k:text(stat[2],9,'OnlineStatLabel'..stat[3],P.muted,false,false,true));Kit.fill(summary:AddChildToHorizontalBox(col)):SetVerticalAlignment(UE.EVerticalAlignment.VAlign_Center)end
     gap();content:AddChild(nameLine(p,17,'ProfileName'));label('@'..p.username,11,'ProfileUsername',P.muted);if p.bio~=''then gap(6);label(p.bio,12,'ProfileBio')end;gap()
     if p.isSelf then button(content,L.t('Редактировать профиль'),'EditProfile','edit')
+     if p.creator==true then
+      local state=model.creatorPowerState;local available=model.creatorPowerAvailable and model:creatorPowerAvailable();local working=model.creatorPowerBusy==true;local active=state and state.active==true
+      gap(8);local power=button(content,L.t(working and'Активация…'or active and'Суперспособность активна'or'Активировать суперспособность'),'CreatorPower','creatorPower',nil,P.gold,true)
+       self.creatorPowerButton=power;self:updateCreatorPowerButton(model)
+      gap(5);label(L.t('+10% к развитию навыка съёмки на 60 игровых минут. Эффект не складывается.'),10,'CreatorPowerDescription',P.muted)
+      local status=not available and L.t('Суперспособность пока недоступна.')or working and L.t('Проверяем статус Creator и выбранного зоя…')or active and L.t('Осталось {minutes} игровых мин.',{minutes=math.max(0,math.ceil(tonumber(state.remainingGameMinutes)or 0))})or not state and L.t('Проверяем выбранного зоя…')or not state.available and L.t(state.reason=='no_character'and'Выберите зоя для активации суперспособности.'or'Суперспособность пока недоступна.')
+      if status then gap(4);label(status,10,'CreatorPowerStatus',active and P.gold or P.muted)end
+     end
     else button(content,p.isFollowing and L.t('Вы подписаны')or L.t('Подписаться'),'Follow','follow',nil,p.isFollowing and P.ink or P.accent,not p.isFollowing);gap(8);button(content,L.t('Написать сообщение'),'MessageProfile','message',p.id,P.blue,true);gap(8);button(content,L.t('Пожаловаться'),'ReportProfileDirect','report',{kind='profile',id=p.id},P.muted)end
     if model.profileMenu and not p.isSelf then gap(8);button(content,model.confirmBlock==p.id and L.t('Подтвердить блокировку')or L.t('Заблокировать'),'Block','block',nil,P.accent)end
     gap(16);k:line(content,'OnlineProfileRule');gap(8);grid(model.posts)
@@ -288,7 +306,7 @@ function M.create(kit,action)
      input('avatarUrl',L.t('Ссылка для браузера · Ctrl+A, Ctrl+C'),model.pendingAvatar.uploadUrl,62)
     end
    end
-   gap();label(L.t('ID аккаунта'),10,'AccountIdTitle',P.muted,true);gap(5);label('@'..model.me.username,16,'AccountId',P.ink,true);gap(5);label(L.t('Закреплён за аккаунтом. Изменение через модератора.'),11,'AccountIdHelp',P.muted);gap(20);input('name',L.t('Имя'),model.me.displayName);input('bio',L.t('О себе'),model.me.bio,90);button(content,L.t('Сохранить'),'SaveProfile','saveProfile',nil,P.accent,true)
+   gap();label(L.t('ID аккаунта'),10,'AccountIdTitle',P.muted,true);gap(5);label('@'..model.me.username,16,'AccountId',P.ink,true);gap(5);label(L.t('ID меняется вместе с именем: строчные буквы и подчёркивания. При совпадении добавляется число.'),11,'AccountIdHelp',P.muted);gap(20);input('name',L.t('Имя'),model.me.displayName);input('bio',L.t('О себе'),model.me.bio,90);button(content,L.t('Сохранить'),'SaveProfile','saveProfile',nil,P.accent,true)
   elseif model.mode=='setup'then
    gap();if model.me then label('@'..model.me.username,17,'SettingsAccount',P.ink,true);gap();button(content,L.t('Сохранённые публикации'),'SavedPosts','saved');gap(8);button(content,L.t('Мои подписки'),'FollowingList','following');gap(8);button(content,L.t('Заблокированные аккаунты'),'OpenBlocks','blocks');gap(24)else label(L.t('Ваше сообщество'),20,'SetupTitle',P.ink,true);gap()end
    label(L.t('Язык'),13,'LanguageTitle',P.ink,true);gap(6)

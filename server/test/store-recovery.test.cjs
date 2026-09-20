@@ -10,7 +10,7 @@ test('startup repairs an interrupted upload generation migration and preserves e
  insert.run(user.id,'unfinished-row','preserve caption',1,now,now+60000);insert.run(user.id,'completed-row','other caption',1,now,now+60000);
  db.exec('ALTER TABLE upload_sessions ADD COLUMN generation TEXT');db.prepare('UPDATE upload_sessions SET generation=? WHERE request_id=?').run('existing-generation','completed-row');
  db.close();db=openStore(file);const rows=db.prepare('SELECT request_id,generation,caption FROM upload_sessions ORDER BY request_id').all();
- assert.equal(rows[0].generation,'existing-generation');assert.match(rows[1].generation,/^[a-f0-9]{32}$/);assert.equal(rows[1].caption,'preserve caption');assert.equal(db.prepare('PRAGMA user_version').get().user_version,10);
+ assert.equal(rows[0].generation,'existing-generation');assert.match(rows[1].generation,/^[a-f0-9]{32}$/);assert.equal(rows[1].caption,'preserve caption');assert.equal(db.prepare('PRAGMA user_version').get().user_version,11);
  db.close();db=openStore(file);assert.deepEqual(db.prepare('SELECT request_id,generation,caption FROM upload_sessions ORDER BY request_id').all(),rows);assert.equal(db.prepare('SELECT COUNT(*) n FROM profiles').get().n,1);
 });
 

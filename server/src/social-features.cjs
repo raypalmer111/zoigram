@@ -1,10 +1,12 @@
 'use strict';
+const {resolvePublicId}=require('./public-ids.cjs');
 
-// Public IDs are ASCII and case-insensitive. Do not interpret email addresses,
+// Public IDs support normalized Unicode names. Do not interpret email addresses,
 // embedded handles, or the beginning of an overlong identifier as mentions.
 function mentionNames(value){
  const names=new Set();
- for(const match of String(value||'').matchAll(/(?<![\p{L}\p{N}_@.+-])@([a-zA-Z0-9_]{3,24})(?![\p{L}\p{N}_@])/gu))names.add(match[1].toLowerCase());
+ const normalized=String(value||'').normalize('NFKC').toLowerCase().normalize('NFC');
+ for(const match of normalized.matchAll(/(?<![\p{L}\p{M}\p{N}_@.+-])@([\p{L}\p{N}_][\p{L}\p{M}\p{N}_]{0,23})(?![\p{L}\p{M}\p{N}_@])/gu))names.add(match[1]);
  return [...names];
 }
 
@@ -14,7 +16,8 @@ function createSocial({db,clock=Date.now}){
   const recipients=new Set();
   if(post&&db.prepare('SELECT 1 FROM profiles WHERE id=? AND banned=0').get(actorId)){
    for(const name of mentionNames(value)){
-    const target=db.prepare(`SELECT p.id FROM profiles p WHERE p.username=? COLLATE NOCASE AND p.banned=0 AND p.id!=? AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=p.id AND b.blocked_id IN (?,?)) OR (b.blocked_id=p.id AND b.blocker_id IN (?,?)))`).get(name,actorId,actorId,post.profile_id,actorId,post.profile_id);
+    const resolved=resolvePublicId(db,name);if(!resolved)continue;
+    const target=db.prepare(`SELECT p.id FROM profiles p WHERE p.id=? AND p.banned=0 AND p.id!=? AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=p.id AND b.blocked_id IN (?,?)) OR (b.blocked_id=p.id AND b.blocker_id IN (?,?)))`).get(resolved.id,actorId,actorId,post.profile_id,actorId,post.profile_id);
     if(target)recipients.add(target.id);
    }
   }

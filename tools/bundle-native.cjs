@@ -32,7 +32,9 @@ end
  for(const [name,code]of [...modules].sort(([a],[b])=>a.localeCompare(b)))bundle+="\n-- Source: "+name+"\nfactories['"+name+"']=function()\n"+code+"\nend\n";
  bundle+="\nreturn zmodule('B1.PhoneIntegration')\n";
  if(modId)bundle=bundle.replaceAll('__MOD_ID__',modId);
- const files=[{path:'B1/PhoneIntegration.lua',content:bundle},{path:'B1/Main.lua',content:'-- The bound phone entry owns startup and cleanup.\nreturn {}\n'},{path:'B2/Main.lua',content:'return {}\n'},{path:'lua_manifest.json',content:fs.readFileSync(path.join(root,'lua_manifest.json'),'utf8')}];
+ const simulation=fs.readFileSync(path.join(root,'B2/CreatorPower.lua'),'utf8').replace(/^\uFEFF/,'');
+ if(/\b(?:require|loadfile|loadstring|dofile)\s*\(/.test(simulation))throw Error('B2 CreatorPower must be self-contained');
+ const files=[{path:'B1/PhoneIntegration.lua',content:bundle},{path:'B1/Main.lua',content:'-- The bound phone entry owns startup and cleanup.\nreturn {}\n'},{path:'B2/Main.lua',content:'return {}\n'},{path:'B2/CreatorPower.lua',content:simulation},{path:'lua_manifest.json',content:fs.readFileSync(path.join(root,'lua_manifest.json'),'utf8')}];
  return {files,modules:[...modules.keys()].sort()};
 }
 module.exports={buildNative};

@@ -1,7 +1,7 @@
 'use strict';
 const http=require('node:http'),crypto=require('node:crypto'),sharp=require('sharp');
 const {openStore,transaction,session,hash,random}=require('./store.cjs');
-const I18n=require('./i18n.cjs'),Metadata=require('./social-metadata.cjs'),Social=require('./social-features.cjs');
+const I18n=require('./i18n.cjs'),Metadata=require('./social-metadata.cjs'),Social=require('./social-features.cjs'),PublicIds=require('./public-ids.cjs');
 sharp.concurrency(2);sharp.cache({memory:32,files:0,items:20});
 const Albums=require('./albums.cjs'),MAX_IMAGE=Albums.MAX_IMAGE;
 class Problem extends Error{constructor(status,message){super(message);this.status=status}}
@@ -21,7 +21,7 @@ function createApp(options={}){
  function blocked(a,b){return !!db.prepare('SELECT 1 FROM blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').get(a,b,b,a)}
  function profile(id,viewer){
   const p=db.prepare('SELECT id,username,display_name,bio,created_at,banned FROM profiles WHERE id=?').get(id);if(!p||p.banned)fail(404,'Профиль недоступен.');
-  return {...(id===viewer?{accountConfigured:!!db.prepare("SELECT 1 FROM account_credentials WHERE profile_id=?").get(id),accountRevision:db.prepare("SELECT updated_at FROM account_credentials WHERE profile_id=?").get(id)?.updated_at||0}:{}),id:p.id,creator:p.id===creatorProfileId,verified:Metadata.verification(db,p.id).verified,username:p.username,displayName:p.display_name,bio:p.bio,createdAt:p.created_at,postCount:db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=?').get(id).n,followers:db.prepare('SELECT COUNT(*) n FROM follows f JOIN profiles p ON p.id=f.follower_id WHERE f.following_id=? AND p.banned=0').get(id).n,following:db.prepare('SELECT COUNT(*) n FROM follows f JOIN profiles p ON p.id=f.following_id WHERE f.follower_id=? AND p.banned=0').get(id).n,isSelf:id===viewer,isFollowing:!!db.prepare('SELECT 1 FROM follows WHERE follower_id=? AND following_id=?').get(viewer,id),isBlocked:!!db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(viewer,id)};
+  return {...(id===viewer?{accountConfigured:!!db.prepare("SELECT 1 FROM account_credentials WHERE profile_id=?").get(id),accountRevision:db.prepare("SELECT updated_at FROM account_credentials WHERE profile_id=?").get(id)?.updated_at||0}:{}),id:p.id,creator:Metadata.creator(db,p.id,creatorProfileId).creator,verified:Metadata.verification(db,p.id).verified,username:p.username,displayName:p.display_name,bio:p.bio,createdAt:p.created_at,postCount:db.prepare('SELECT COUNT(*) n FROM posts WHERE profile_id=?').get(id).n,followers:db.prepare('SELECT COUNT(*) n FROM follows f JOIN profiles p ON p.id=f.follower_id WHERE f.following_id=? AND p.banned=0').get(id).n,following:db.prepare('SELECT COUNT(*) n FROM follows f JOIN profiles p ON p.id=f.following_id WHERE f.follower_id=? AND p.banned=0').get(id).n,isSelf:id===viewer,isFollowing:!!db.prepare('SELECT 1 FROM follows WHERE follower_id=? AND following_id=?').get(viewer,id),isBlocked:!!db.prepare('SELECT 1 FROM blocks WHERE blocker_id=? AND blocked_id=?').get(viewer,id)};
  }
  function authorize(req){const token=(req.headers.authorization||'').match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];if(!token)fail(401,'Войдите в Zoigram.');const s=db.prepare('SELECT s.*,p.banned FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE token_hash=? AND expires_at>?').get(hash(token),now());if(!s||s.banned)fail(401,'Войдите в Zoigram заново.');return s}
  function visiblePost(id,user){const p=db.prepare('SELECT p.id,p.profile_id,p.caption,p.created_at,p.width,p.height FROM posts p JOIN profiles a ON a.id=p.profile_id WHERE p.id=? AND a.banned=0').get(id);if(!p||blocked(user,p.profile_id))fail(404,'Публикация недоступна.');return p}
@@ -59,7 +59,7 @@ function createApp(options={}){
    limit('ip:'+ip,600);if(method==='GET'&&p==='/health')return send(res,200,{ok:true,service:'Zoigram',version:require('../package.json').version});
    if(await avatars.handle(req,res,u))return;
    if(await accounts.handle(req,res,u,ip,language))return;
-    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,mentionNotifications:true,mentions:true,pinnedPosts:true,mediaRefresh:true,unreadConversations:true,photoAlbums:true,postRequestLookup:true,resumableUploads:true,announcements:true},languages:I18n.languages,limits:{albumPhotos:Albums.MAX_PHOTOS,imageBytes:MAX_IMAGE,uploadImageBytes:require('./uploads.cjs').MAX_INPUT,caption:2200,comment:1000,message:2000,postsPerDay:20,pinnedPosts:3},origin});
+    if(method==='GET'&&p==='/api/info')return send(res,200,{name:options.name||'Zoigram',version:require('../package.json').version,environment:local?'local':'public',authentication:'password',features:{nameBasedIds:true,creatorGrants:true,creatorPower:true,avatars:true,accounts:true,profileSearch:true,captionEditing:true,savedPosts:true,commentNotifications:true,mentionNotifications:true,mentions:true,pinnedPosts:true,mediaRefresh:true,unreadConversations:true,photoAlbums:true,postRequestLookup:true,resumableUploads:true,announcements:true},languages:I18n.languages,limits:{albumPhotos:Albums.MAX_PHOTOS,imageBytes:MAX_IMAGE,uploadImageBytes:require('./uploads.cjs').MAX_INPUT,caption:2200,comment:1000,message:2000,postsPerDay:20,pinnedPosts:3},origin});
    if(method==='POST'&&p==='/api/auth/device'){
     limit('device:'+ip,6,600000);const deviceToken=random(),userCode=crypto.randomBytes(5).toString('hex').toUpperCase(),expiresAt=now()+600000;
     db.prepare('INSERT INTO devices(secret_hash,user_code,expires_at) VALUES(?,?,?)').run(hash(deviceToken),userCode,expiresAt);
@@ -85,6 +85,11 @@ function createApp(options={}){
    if(method==='GET'&&p==='/api/announcements')return send(res,200,{announcements:announcements.live()});
    if(method==='DELETE'&&p==='/api/session'){db.prepare('DELETE FROM sessions WHERE id=?').run(s.id);return send(res,200,{ok:true})}
    if(method==='GET'&&p==='/api/me')return send(res,200,{profile:profile(uid,uid)});
+   if(method==='GET'&&p==='/api/me/creator-power'){
+    if(!Metadata.creator(db,uid,creatorProfileId).creator)fail(403,'Суперспособность доступна только креаторам.');
+    if(u.search)fail(400,'Проверьте параметры запроса.');
+    return send(res,200,{ability:'filming_learning',profileId:uid,multiplier:1.1,durationGameMinutes:60});
+   }
    if(method==='POST'&&p==='/api/media/refresh'){
     limit('media-refresh:'+uid,60);const b=await json(req,4096),postIds=b.postIds||[],profileIds=b.profileIds||[];
     if(!Array.isArray(postIds)||!Array.isArray(profileIds)||postIds.length+profileIds.length>30||postIds.some(id=>!Number.isSafeInteger(id)||id<1)||profileIds.some(id=>typeof id!=='string'||!/^[a-f0-9-]{36}$/.test(id)))fail(400,'Проверьте параметры запроса.');
@@ -95,15 +100,16 @@ function createApp(options={}){
    }
    if(method==='PATCH'&&p==='/api/me'){
     const b=await json(req),current=db.prepare('SELECT username FROM profiles WHERE id=?').get(uid);
-    if(['id','profileId','provider','subject'].some(k=>Object.hasOwn(b,k))||Object.hasOwn(b,'username')&&b.username!==current.username)fail(403,'ID аккаунта закреплён. Изменить его может только модератор.');
+    if(['id','profileId','provider','subject'].some(k=>Object.hasOwn(b,k))||Object.hasOwn(b,'username')&&b.username!==current.username)fail(403,'ID формируется автоматически из имени.');
     const name=text(b.displayName,40,true),bio=text(b.bio||'',160);
-    db.prepare('UPDATE profiles SET display_name=?,bio=? WHERE id=?').run(name,bio,uid);return send(res,200,{profile:profile(uid,uid)});
+    limit('profile-edit:'+uid,20,3600000);
+    transaction(db,()=>{PublicIds.updateNamePublicId(db,uid,name);db.prepare('UPDATE profiles SET bio=? WHERE id=?').run(bio,uid)});return send(res,200,{profile:profile(uid,uid)});
    }
    if(method==='GET'&&p==='/api/profiles/search'){
     limit('search:'+uid,60);const query=text(u.searchParams.get('q')||'',80).normalize('NFKC').replace(/^@/,'').toLowerCase(),after=u.searchParams.get('after')||'';
     if(after&&!/^[a-f0-9-]{36}$/.test(after))fail(400,'Неверная страница поиска.');
     if(!query)return send(res,200,{profiles:[],nextCursor:null});
-    const rows=db.prepare(`SELECT p.id FROM profiles p WHERE p.banned=0 AND p.id>? AND (instr(zoigram_fold(p.username),?)>0 OR instr(zoigram_fold(p.display_name),?)>0) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.id) OR (b.blocker_id=p.id AND b.blocked_id=?)) ORDER BY p.id LIMIT 21`).all(after,query,query,uid,uid);
+    const rows=db.prepare(`SELECT p.id FROM profiles p WHERE p.banned=0 AND p.id>? AND (instr(zoigram_fold(p.username),?)>0 OR instr(zoigram_fold(p.display_name),?)>0 OR EXISTS(SELECT 1 FROM public_id_aliases alias WHERE alias.profile_id=p.id AND alias.username=?)) AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.id) OR (b.blocker_id=p.id AND b.blocked_id=?)) ORDER BY p.id LIMIT 21`).all(after,query,query,query,uid,uid);
     return send(res,200,{profiles:rows.slice(0,20).map(p=>profile(p.id,uid)),nextCursor:rows.length>20?rows[19].id:null});
    }
    if(method==='GET'&&p==='/api/activity')return send(res,200,{unreadNotifications:unreadNotifications(uid,commentAlerts,mentionAlerts),unreadMessages:unreadMessages(uid)});

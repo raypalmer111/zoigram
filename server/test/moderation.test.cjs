@@ -17,7 +17,7 @@ test('moderator changes the public ID, preserves ownership and sessions, and rec
 
 test('invalid, missing and conflicting IDs leave both profile and audit unchanged',t=>{
  const db=openStore(':memory:');t.after(()=>db.close());const a=identity(db,'test','a'),b=identity(db,'test','b');
- for(const newId of ['', 'ab','a'.repeat(25),'имя','with space','with-dash','@name'])assert.throws(()=>setPublicId(db,a.id,newId,'Reason'),/ID:/);
+ for(const newId of ['', 'a'.repeat(25),'🚀',' _ ','\u0301'])assert.throws(()=>setPublicId(db,a.id,newId,'Reason'),/ID:/);
  assert.throws(()=>setPublicId(db,a.id,'valid',' '),/причину/);assert.throws(()=>setPublicId(db,a.id,'valid','a'.repeat(1001)),/причину/);
  assert.throws(()=>setPublicId(db,'@missing','valid','Reason'),/не найден/);assert.throws(()=>setPublicId(db,a.id,b.username.toUpperCase(),'Reason'),/занят/);
  assert.deepEqual(identity(db,'test','a'),a);assert.equal(db.prepare('SELECT COUNT(*) n FROM moderation').get().n,0);

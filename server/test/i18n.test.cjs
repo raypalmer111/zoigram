@@ -15,7 +15,7 @@ test('concurrent API requests use their own language and never translate player 
   const headers={'Accept-Language':language};const denied=await request('/api/me',{headers});assert.equal(denied.status,401);assert.equal(denied.headers.get('content-language'),language);const body=await denied.json();assert.equal(body.error,I18n.t(language,'Войдите в Zoigram.'));assert.equal(body.messageKey,'Войдите в Zoigram.');
   const profile=(await(await request('/api/me',{headers:{...headers,...auth}})).json()).profile;assert.equal(profile.displayName,'Лента');assert.equal(profile.bio,'Сохранить');assert.equal(profile.id,person.id);
   const feed=await(await request('/api/feed',{headers:{...headers,...auth}})).json();assert.equal(feed.posts[0].caption,'Профиль 한국어 Français 🌆');
-  const invalid=await request('/api/me',{method:'PATCH',headers:{...headers,...auth,'Content-Type':'application/json'},body:JSON.stringify({username:'rename',displayName:'name'})});assert.equal(invalid.status,403);assert.equal((await invalid.json()).error,I18n.t(language,'ID аккаунта закреплён. Изменить его может только модератор.'));
+  const invalid=await request('/api/me',{method:'PATCH',headers:{...headers,...auth,'Content-Type':'application/json'},body:JSON.stringify({username:'rename',displayName:'name'})});assert.equal(invalid.status,403);assert.equal((await invalid.json()).error,I18n.t(language,'ID формируется автоматически из имени.'));
  }));
  const unsupported=await request('/api/me',{headers:{'Accept-Language':'es-ES'}});assert.equal((await unsupported.json()).error,'Sign in to Zoigram.');
 });

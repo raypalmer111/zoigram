@@ -6,19 +6,27 @@ const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}
 function numeric(value){const s=String(value);if(!/^[1-9]\d{0,14}$/.test(s))fail(400,'Неверный номер записи.');return Number(s)}
 function reasonText(value){if(typeof value!=='string'||!value.trim()||[...value].length>1000||/[\x00-\x1f\x7f]/.test(value))fail(400,'Укажите причину: от 1 до 1000 символов в одной строке.');return value.trim()}
 function audit(db,action,target,reason,actorId,details){db.prepare('INSERT INTO moderation(action,target_id,reason,created_at) VALUES(?,?,?,?)').run(action,String(target),JSON.stringify({reason,actorId,details}),Date.now())}
-function act(db,input,actor,ownerSteamId){
+function act(db,input,actor,ownerSteamId,ownerProfileId=''){
  const {action}=input,target=String(input.targetId||''),reason=reasonText(input.reason);
- if(!['set-id','set-verified','set-like-bonus','ban','unban','delete-post','delete-comment','resolve','reopen'].includes(action))fail(400,'Неизвестное действие модерации.');
- if(['set-id','set-verified','ban','unban'].includes(action)&&!uuid(target))fail(400,'Неверный UUID аккаунта.');
+ if(!['set-id','set-verified','set-creator','set-like-bonus','ban','unban','delete-post','delete-comment','resolve','reopen'].includes(action))fail(400,'Неизвестное действие модерации.');
+ if(['set-id','set-verified','set-creator','ban','unban'].includes(action)&&!uuid(target))fail(400,'Неверный UUID аккаунта.');
+ if(action==='set-creator'&&(!uuid(ownerProfileId)||actor.id!==ownerProfileId))fail(403,'Статус Creator может менять только настроенный владелец Zoigram.');
  if(action==='set-id'){
   if(typeof input.expectedPublicId!=='string')fail(400,'Откройте актуальный профиль перед сменой ID.');
   try{return setPublicId(db,target,input.publicId,reason,{actorId:actor.id,expectedPublicId:input.expectedPublicId})}catch(e){if(e.status)throw e;fail(400,e.message)}
  }
  return transaction(db,()=>{
   let details,changed=true;
-  if(action==='set-verified'||action==='set-like-bonus'){
+  if(action==='set-verified'||action==='set-creator'||action==='set-like-bonus'){
    if(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<0)fail(400,'Откройте актуальную запись перед изменением.');
-   if(action==='set-verified'){
+   if(action==='set-creator'){
+    if(typeof input.creator!=='boolean')fail(400,'Укажите статус Creator.');
+    const p=db.prepare('SELECT username FROM profiles WHERE id=?').get(target);if(!p)fail(404,'Игрок не найден.');
+    if(target===ownerProfileId)fail(403,'Статус Creator владельца закреплён за его аккаунтом.');
+    const previous=Metadata.creator(db,target,ownerProfileId);if(previous.creatorRevision!==input.expectedRevision)fail(409,'Статус Creator уже изменился. Обновите профиль.');
+    changed=previous.creator!==input.creator;details={publicId:p.username,previous:previous.creator,creator:input.creator,previousRevision:previous.creatorRevision,revision:previous.creatorRevision+(changed?1:0)};
+    if(changed)db.prepare('INSERT INTO creator_grants(profile_id,creator,revision,updated_at) VALUES(?,?,?,?) ON CONFLICT(profile_id) DO UPDATE SET creator=excluded.creator,revision=excluded.revision,updated_at=excluded.updated_at').run(target,input.creator?1:0,previous.creatorRevision+1,Date.now());
+   }else if(action==='set-verified'){
     if(typeof input.verified!=='boolean')fail(400,'Укажите статус верификации.');
     const p=db.prepare('SELECT username FROM profiles WHERE id=?').get(target);if(!p)fail(404,'Игрок не найден.');
     const previous=Metadata.verification(db,target);if(previous.verificationRevision!==input.expectedRevision)fail(409,'Верификация уже изменилась. Обновите профиль.');

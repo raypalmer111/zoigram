@@ -13,10 +13,11 @@ async function fixture(t){
 const tiny=()=>sharp({create:{width:64,height:64,channels:3,background:'#b67a4d'}}).jpeg().toBuffer();
 const inbox=async(f,actor='bobby',features=modern)=>(await f.call(actor,'/api/notifications',{features})).body;
 
-test('mention parsing respects full ASCII public IDs, punctuation, Unicode boundaries and email addresses',()=>{
+test('mention parsing respects full Unicode public IDs, punctuation, boundaries and email addresses',()=>{
  const max='a'.repeat(24);
  assert.deepEqual(mentionNames('Hello @Bobby, @bobby!\n(@charlie) @'+max),['bobby','charlie',max]);
- assert.deepEqual(mentionNames('x@bobby x.@bobby x+@bobby @@bobby é@bobby _@bobby @bo @'+max+'a @bobbyé'),[]);
+ assert.deepEqual(mentionNames('x@bobby x.@bobby x+@bobby @@bobby é@bobby _@bobby @'+max+'a'),[]);
+ assert.deepEqual(mentionNames('@bo @bobbyé'),['bo','bobbyé']);
  assert.deepEqual(mentionNames('@bobby @charlie.'),['bobby','charlie']);
 });
 
@@ -119,7 +120,7 @@ test('v9 migration preserves notification rows, IDs, read states, high-water seq
   const comment=Number(db.prepare('INSERT INTO comments(profile_id,post_id,request_id,text,created_at) VALUES(?,?,?,?,?)').run(actor.id,post,random(),'Old comment',2).lastInsertRowid);
   db.exec(`DROP TABLE notifications;CREATE TABLE notifications(id INTEGER PRIMARY KEY AUTOINCREMENT,profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,actor_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('like','follow','comment')),post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,created_at INTEGER NOT NULL,read_at INTEGER,comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,CHECK((kind='like' AND post_id IS NOT NULL AND comment_id IS NULL) OR (kind='follow' AND post_id IS NULL AND comment_id IS NULL) OR (kind='comment' AND post_id IS NOT NULL AND comment_id IS NOT NULL)));DROP TABLE pinned_posts;ALTER TABLE operational_errors DROP COLUMN stage;PRAGMA user_version=9;`);
   const insert=db.prepare('INSERT INTO notifications(id,profile_id,actor_id,kind,post_id,created_at,read_at,comment_id) VALUES(?,?,?,?,?,?,?,?)');insert.run(11,owner.id,actor.id,'like',post,3,4,null);insert.run(12,owner.id,actor.id,'comment',post,5,null,comment);insert.run(999,owner.id,actor.id,'follow',null,6,null,null);db.prepare('DELETE FROM notifications WHERE id=999').run();const before=db.prepare('SELECT * FROM notifications ORDER BY id').all();db.close();
-  db=openStore(filename);assert.equal(db.prepare('PRAGMA user_version').get().user_version,10);assert.deepEqual(db.prepare('SELECT * FROM notifications ORDER BY id').all(),before);assert.equal(db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get().seq,999);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert(db.prepare('PRAGMA table_info(operational_errors)').all().some(c=>c.name==='stage'));
+  db=openStore(filename);assert.equal(db.prepare('PRAGMA user_version').get().user_version,11);assert.deepEqual(db.prepare('SELECT * FROM notifications ORDER BY id').all(),before);assert.equal(db.prepare("SELECT seq FROM sqlite_sequence WHERE name='notifications'").get().seq,999);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert(db.prepare('PRAGMA table_info(operational_errors)').all().some(c=>c.name==='stage'));
   db.prepare('UPDATE profiles SET username=? WHERE id=?').run('owner',owner.id);createSocial({db}).syncMentions(post,actor.id,'@owner',comment);assert.equal(db.prepare("SELECT id FROM notifications WHERE kind='mention'").get().id,1000);db.close();db=openStore(filename);assert.equal(db.prepare("SELECT id FROM notifications WHERE kind='mention'").get().id,1000);db.prepare('DELETE FROM comments WHERE id=?').run(comment);assert.equal(db.prepare("SELECT COUNT(*) n FROM notifications WHERE kind IN ('mention','comment')").get().n,0);
  }finally{try{db?.close()}catch{}assert(path.resolve(dir).startsWith(path.resolve(os.tmpdir())+path.sep+'zoigram-social-migration-'));fs.rmSync(dir,{recursive:true,force:true})}
 });

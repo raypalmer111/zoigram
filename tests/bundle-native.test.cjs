@@ -7,7 +7,8 @@ test('shipping Lua has a self-contained entry and no game-disallowed file import
  assert(!/\brequire\s*\(/.test(entry));assert(!/\b(?:loadfile|loadstring|dofile)\s*\(/.test(entry));assert(!entry.includes('__ASSET_PATH__'));assert(!entry.includes('__MOD_ID__'));assert(!entry.includes("C:/Users/"));
  assert(!/(?<![.\w])NewObject\s*\(/.test(entry));assert(entry.includes('UE.NewObject('));
  const definitions=[...entry.matchAll(/factories\['([^']+)'\]=function/g)].map(m=>m[1]);const references=[...entry.matchAll(/zmodule\('([^']+)'\)/g)].map(m=>m[1]);assert.equal(new Set(definitions).size,definitions.length);for(const ref of references)assert(definitions.includes(ref),ref);
- const manifest=JSON.parse(build.files.find(f=>f.path==='lua_manifest.json').content);for(const binding of manifest.bindings.B1)assert(build.files.some(f=>f.path===binding.script.replaceAll('.','/')+'.lua'));
+ const manifest=JSON.parse(build.files.find(f=>f.path==='lua_manifest.json').content);for(const binding of [...manifest.bindings.B1,...manifest.bindings.B2])assert(build.files.some(f=>f.path===binding.script.replaceAll('.','/')+'.lua'));
+ const simulation=build.files.find(f=>f.path==='B2/CreatorPower.lua').content;assert(!/\b(?:require|loadfile|loadstring|dofile)\s*\(/.test(simulation));assert(simulation.includes('Zoigram.CreatorPower.Inspect'));
  const obsolete=JSON.parse(fs.readFileSync(require('node:path').resolve(__dirname,'../InzoiSocial/obsolete-files.json')));for(const f of build.files)assert(!obsolete.includes('lua/'+f.path),'Installer would remove '+f.path);
 });
 test('packaged icon is byte-identical and requires no installer or absolute path',()=>{
