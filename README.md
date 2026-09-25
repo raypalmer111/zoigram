@@ -1,8 +1,16 @@
-# Zoigram 1.0 Creators — source and build instructions
+# Zoigram — release status and source
+
+The latest tested **player client is 1.2.0** (25 September 2026). It is marked as a stable client build, with beta and experimental flags off. The companion server is versioned separately and currently runs **0.23.0-beta.4** (database schema 13; four stories per day). A server beta version does not make the 1.2.0 client package a beta.
+
+In an inZOI smoke test, the installed 1.2.0 client opened the phone and feed, scrolled posts, captured a Photo Mode image, and restored its photo preview from a local draft after restarting the game. The owner published the temporary photo post, received a successful server response, and immediately deleted it to keep the public feed clear. The deleted post can no longer be inspected visually; this test does **not** establish that every player's reported upload issue is fixed. See the [1.2.0 test and release notes](docs/RELEASE_1.2.md).
+
+The player ZIP was prepared for [Zoigram on Nexus Mods](https://www.nexusmods.com/inzoi/mods/1474); this repository does not host that ZIP or confirm that version 1.2.0 has been uploaded to Nexus. **The source currently checked into this `main` branch is still the 1.0.0 snapshot.** Its build commands below produce that historical version, not the tested 1.2.0 package. Do not distribute a build from this checkout as 1.2.0.
+
+## Historical 1.0.0 source and build instructions
 
 Client **1.0.0** is paired with server **0.22.0** and database schema **11**. Update the community server before distributing the client. Internal account identities, credentials, posts and conversations remain intact. Public IDs now follow each player's chosen display name.
 
-## Changes in this release
+## Changes in 1.0.0
 
 - Public IDs update when the display name changes. Unicode letters and numbers are retained, letters use lowercase, spaces become underscores, and decorative symbols are removed. Duplicates receive a numeric suffix. A public ID has up to 24 Unicode code points. Names that contain no usable characters keep a stable generated fallback.
 - Former IDs remain reserved to their original accounts and resolve in mentions and exact-ID search. Migration derives IDs from existing non-placeholder names. Bio-only edits preserve an existing ID, including a moderation override.
